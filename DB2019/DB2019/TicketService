@@ -1,0 +1,879 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 10.7
+-- Dumped by pg_dump version 10.7
+
+-- Started on 2019-06-05 03:21:25
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- TOC entry 1 (class 3079 OID 12924)
+-- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: 
+--
+
+CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
+
+
+--
+-- TOC entry 2826 (class 0 OID 0)
+-- Dependencies: 1
+-- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
+
+
+--
+-- TOC entry 200 (class 1255 OID 16791)
+-- Name: datechanged(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.datechanged() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+
+begin
+if new.end_date < old.end_date then
+	update transactions set ticket_price = ticket_price*0.8 where ticket_id = old.id;
+end if;
+return new;
+end;
+$$;
+
+
+ALTER FUNCTION public.datechanged() OWNER TO postgres;
+
+--
+-- TOC entry 201 (class 1255 OID 16790)
+-- Name: getticketsuntiltoday(date); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.getticketsuntiltoday(dt date) RETURNS TABLE(title text, totaltickets integer)
+    LANGUAGE plpgsql
+    AS $$
+declare 
+	recTick record;
+	curTick cursor (dt date) for select tickets.title as tTitle, sum(ticket_num) as tTick
+   								 from tickets inner join transactions on id = ticket_id
+  								 where transactions.date >= dt and transactions.date <= CURRENT_DATE
+ 							     group by tickets.title;								 
+begin
+open curTick(dt);
+loop
+	fetch curTick into recTick;
+	exit when not found;
+	title := recTick.tTitle;
+	totalTickets := recTick.tTick;
+	return next;
+end loop;
+close curTick;
+end; $$;
+
+
+ALTER FUNCTION public.getticketsuntiltoday(dt date) OWNER TO postgres;
+
+SET default_tablespace = '';
+
+SET default_with_oids = false;
+
+--
+-- TOC entry 196 (class 1259 OID 16731)
+-- Name: customers; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.customers (
+    id character varying(40) NOT NULL,
+    name character varying(50) NOT NULL,
+    afm character varying(50),
+    phone character varying(50),
+    email character varying(50) NOT NULL,
+    credit_card character varying(50),
+    age integer
+);
+
+
+ALTER TABLE public.customers OWNER TO postgres;
+
+--
+-- TOC entry 197 (class 1259 OID 16754)
+-- Name: providers; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.providers (
+    name character varying(50) NOT NULL,
+    afm character varying(50)
+);
+
+
+ALTER TABLE public.providers OWNER TO postgres;
+
+--
+-- TOC entry 198 (class 1259 OID 16759)
+-- Name: tickets; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.tickets (
+    id character varying(40) NOT NULL,
+    title character varying(200) NOT NULL,
+    category character varying(11),
+    start_date date NOT NULL,
+    end_date date,
+    price numeric(4,2),
+    available integer,
+    location character varying(100),
+    provider character varying(50)
+);
+
+
+ALTER TABLE public.tickets OWNER TO postgres;
+
+--
+-- TOC entry 199 (class 1259 OID 16769)
+-- Name: transactions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.transactions (
+    cust_id character varying(40) NOT NULL,
+    ticket_id character varying(40) NOT NULL,
+    ticket_num integer,
+    ticket_price numeric(4,2),
+    date date NOT NULL
+);
+
+
+ALTER TABLE public.transactions OWNER TO postgres;
+
+--
+-- TOC entry 2815 (class 0 OID 16731)
+-- Dependencies: 196
+-- Data for Name: customers; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.customers (id, name, afm, phone, email, credit_card, age) FROM stdin;
+75e8d83e-e811-4b7e-8ee5-0d7cd7e7508f	Prent Murdy	17-997-8202	2437049152	pmurdy0@liveinternet.ru	3533642044767662	38
+f792601c-f49f-4b19-a29d-21ce1aa80104	Killie Whiffen	54-183-6623	8379274845	kwhiffen1@nba.com	5602234740285156	46
+3fe18e26-0388-421f-97df-79b16963bba3	Tersina Hazelby	24-520-7644	2757083847	thazelby2@pcworld.com	3552496269115248	65
+520f99dd-a369-420f-bf67-7c91c7d25482	Davie Gabbidon	56-429-6637	4653649912	dgabbidon3@time.com	3559664867205892	18
+93dd6ab1-c209-4335-8c72-dc95d6409c05	Tarra Quesne	05-319-4849	3874005919	tquesne4@t.co	5020327065778570822	46
+c10edcfe-0b50-4a44-b65f-f3c1efa04edf	Corbett Pregel	50-489-3687	1087536463	cpregel5@blogs.com	3588413303747884	59
+19f567da-cf0f-4586-99f1-02289699a497	Mohammed Swetmore	29-598-4980	4286208363	mswetmore6@nba.com	3572933593067535	34
+abac17a1-8f99-4e95-b1ef-aab819c5184d	Hewett Barense	00-320-0385	6327471391	hbarense7@ebay.com	3547564435354401	60
+9d122f9b-f21f-4555-9e99-77fd8136a8d8	Brina Greenshiels	62-690-5092	6829546814	bgreenshiels8@paypal.com	30112841985309	25
+abcb135f-83f3-4304-88f3-dcc62e75740c	Roxi Toseland	65-254-6064	5711335448	rtoseland9@ucla.edu	63041213954992036	23
+9822f78b-869f-4b2b-a3a6-8a6cfbfd8a8a	Henry McNerlin	32-811-6545	1401530775	hmcnerlina@cam.ac.uk	30531182783140	70
+188b5d4a-c7fe-4157-a11b-726d67b1f5d2	Grenville Cash	30-814-4082	7539727312	gcashb@icq.com	3588539983788770	45
+9e114e1c-74dc-4cde-b16b-eeecd72e0424	Franklyn Porch	10-882-6511	8839865993	fporchc@hhs.gov	30070006553702	65
+6008809e-c087-4069-90ac-8dba5de9ac43	Anatole Varren	38-803-4805	8939409932	avarrend@google.de	5108758131982798	69
+425bd285-6f1c-439a-be03-b5443cb6e8d2	Launce Henzer	51-456-4671	2579186973	lhenzere@tamu.edu	3576265123525666	43
+c7d3d71d-d732-42a8-abd9-cbdfe88f95e4	Deloria Benn	08-354-9403	3327228106	dbennf@google.ca	3565705120804591	39
+bad19c8f-88c9-4ce7-89aa-d5b4854419d6	Stormy Ashington	92-080-5089	1065627540	sashingtong@scientificamerican.com	3540151115962963	58
+c5af083e-10e3-4dee-978f-d340708f1606	Jason Confait	36-604-7363	6263659989	jconfaith@yellowbook.com	4026091180969074	38
+f38add98-61af-4646-b80e-ad62c23ec16b	Dicky Paulich	44-771-2314	1842409588	dpaulichi@slate.com	201647885507199	34
+6e596cb2-3c46-4b60-9b1d-2a5fcf90c998	Matty Grinyov	44-163-1091	6865301826	mgrinyovj@shareasale.com	5018624763194208282	58
+b4aa986e-e01b-4b4c-86c0-3bf9205ca526	Patrica Lionel	55-129-6050	8729395605	plionelk@instagram.com	3588267792488008	39
+8a7f7161-1d7c-40d0-83df-8ad21913e721	Kalindi Mealing	59-688-0929	6215566177	kmealingl@fda.gov	67594794522937001	46
+96a081bb-8fec-4f45-89fa-cc8433b6f106	Marna Clackers	19-314-6398	5814591532	mclackersm@illinois.edu	5423399353782315	24
+da6078e9-9a84-4c52-ba3d-4d691c518a61	Ursa Osipov	64-017-3017	1959580918	uosipovn@nhs.uk	5602242700710402	38
+148c0071-4979-415c-8808-79e7487510f2	Orelee Sheilds	28-288-9177	7004770870	osheildso@narod.ru	3579448142169826	40
+2729bf30-73aa-4b4a-be69-3c48928f777c	Ailey Sentance	70-036-4991	8608636437	asentancep@exblog.jp	3552220122428436	18
+682d042a-b476-488a-b529-742fa827604a	Brennan Buske	76-572-8301	8204999558	bbuskeq@amazon.co.uk	201527022872526	33
+39250568-b6c8-4e2b-ae48-ac5774c58b03	Jeanette Fargher	13-216-8666	5236781464	jfargherr@forbes.com	3531160678888136	64
+06d4f1d1-18b5-4372-8f48-0fee5f2053a3	Hobart Arrigo	68-036-8685	7564642835	harrigos@shareasale.com	30378119186553	23
+971974be-a9c8-4ba3-97c3-1dbb292f0333	Charleen Gillow	47-044-7422	4251536501	cgillowt@zdnet.com	3577882815569080	54
+c116f1c8-5046-4173-867d-d43b35391f28	Eveleen Bedingfield	42-422-1873	5077214729	ebedingfieldu@ox.ac.uk	372301191583428	69
+d6fa270f-0bd2-4b95-acbe-05944ce59945	Minta Syde	25-810-4389	4388260719	msydev@microsoft.com	3532651945301217	34
+5e7a6ffb-8dc3-4df7-bd81-0f70b8c6294b	Roslyn Nimmo	56-154-7897	5604920516	rnimmow@spotify.com	5602233700659483	32
+622818a8-61a4-4680-87ab-962d3311d853	Cosette Noblett	53-960-2691	6743356639	cnoblettx@nasa.gov	3568934330312495	32
+b439c060-eee0-407e-93a6-12a0f0bf0bc0	Lucie Rispen	00-585-8492	5224684392	lrispeny@wikimedia.org	4041598902698162	26
+a6e7dd15-6161-42e5-b282-e431bec79b66	Charmain Janatka	40-267-7750	2325736107	cjanatkaz@chronoengine.com	3585145249281189	46
+b3402da9-5524-4f17-959c-1c1a566abd69	Thorn Mahomet	90-043-1554	5585454620	tmahomet10@amazon.com	348908487679321	29
+e4ab6f72-6647-4fff-89dc-4b481f0ab5c4	Pam Aleksich	12-331-8335	1332211590	paleksich11@cisco.com	5010128125348181	55
+91f90fd8-15e7-4466-a68c-025089851cd5	Les Gherardesci	22-865-1664	8239675282	lgherardesci12@hostgator.com	5108756785842714	33
+6aea7bba-c491-4a8e-8a5e-bc06750083e0	Diarmid Elcoux	35-767-7820	4879373079	delcoux13@cloudflare.com	5602238668888180	39
+1f1c74e4-bb2b-43fe-a4e5-7e3012f8f6d8	Harbert Heather	81-812-5093	8458704858	hheather14@nps.gov	3538525824142278	22
+90562646-eb92-4ff4-8274-03932727e659	Maryellen Hamor	14-350-8597	2296430236	mhamor15@nyu.edu	6304660197822381	70
+45a38514-2b25-429f-b3d7-24db986a42db	Lyn Gawen	81-695-0496	3199812436	lgawen16@nyu.edu	3543502735879333	25
+d084242f-a193-47f2-a709-6245fd8d0aa4	Keene Meiklejohn	05-118-2229	9111039458	kmeiklejohn17@engadget.com	5241794845994397	37
+d4e818c7-18f0-4296-bdbb-a0dfaa4c4be2	Tybie Bowich	11-768-7068	5741393377	tbowich18@addthis.com	3577553153470484	62
+42a43327-62f7-4c5f-a1a4-b2ac27e69da1	Arlie Constantine	63-117-8198	1626788029	aconstantine19@mysql.com	3589093433857065	66
+9c61d8e6-7b17-474b-be12-2a07a9bf7e19	Allin Lumpkin	58-964-3024	1959075414	alumpkin1a@sbwire.com	201888305920121	51
+6e09cd90-11e6-472a-a22a-3dd7b80ed7ce	Freddie Stive	40-575-7790	2988239442	fstive1b@boston.com	3588738845275808	66
+dd354f82-c4dc-43b7-a4f7-5ba91447e1a7	Barnaby Pendered	18-688-4633	2997096995	bpendered1c@foxnews.com	3542546481109271	28
+9990e83b-e4ba-4c8c-be88-2c495809eb07	Amberly MacConnulty	33-927-0652	3037012603	amacconnulty1d@nps.gov	30142625601376	40
+d7a8ffca-0732-4132-9842-ed4ad7b4d461	Paolina Ineson	79-483-8929	8817860644	pineson1e@apple.com	3578987200794596	27
+d9e81440-2273-43e8-bb79-4f11ab28b05b	Deloris O'Driscole	43-579-8230	3864899970	dodriscole1f@constantcontact.com	3570211733268301	26
+bbd81cea-a28a-43e5-ab8a-53f682b29bf3	Candace Pound	47-140-7791	8244920253	cpound1g@businessinsider.com	5100131228335387	61
+a401fad2-4862-4525-8bb3-e9b724335fd1	Nealon Zorzutti	27-225-1837	8049002862	nzorzutti1h@google.it	4026503328879585	23
+c3913562-ec1e-4139-8005-d180e2d58593	Nanci Qualtrough	96-021-5357	6048996854	nqualtrough1i@chronoengine.com	3576302210053938	51
+4451789d-bded-4e9c-a391-85e32ad6175e	Felipe McAuslene	96-182-0565	6817080835	fmcauslene1j@networksolutions.com	3583780666452921	67
+c81c4c3d-25d7-49f8-9212-20eb322102d7	Lionel Alfwy	02-670-4385	4812368519	lalfwy1k@harvard.edu	3579770009973903	37
+52466041-b284-4805-890a-e9e4d3279216	Zebedee Probin	84-630-0004	5252031905	zprobin1l@drupal.org	3542716925950537	43
+42d4ffcc-9d10-4e9f-b997-b5ec73c51564	Lyon Inkster	58-312-5719	1498308784	linkster1m@cpanel.net	3566289881312127	32
+5bf2f871-a9f4-4c77-90ff-91e5435eceb7	Meredith Leason	28-056-1533	4568004141	mleason1n@sciencedirect.com	5641821337871969	58
+d209ff27-92b1-43b2-beda-1d9732302261	Edith Ebenezer	17-541-4515	3997280794	eebenezer1o@ocn.ne.jp	3570376410798332	62
+7dae6269-8429-4e9f-a344-13d6f4edb236	Melantha Hagan	31-347-2312	2632510254	mhagan1p@google.nl	5610652655218005	29
+2324ee0e-edc2-4037-9a17-5d5818809c5d	Amalie Warrack	80-981-0320	3627293941	awarrack1q@newyorker.com	5100178638396251	64
+e74edfe0-42cc-4392-abc6-6e54d10fffad	Idaline McGrudder	46-273-3636	6285077387	imcgrudder1r@infoseek.co.jp	30337984442236	24
+c834638f-cfae-419d-92ba-5c0e68ac48b9	Caterina Gever	11-897-7427	9519406690	cgever1s@cisco.com	4017954650248	40
+6dc22722-7f79-413f-93e5-1a82a23d6cee	Orsola Rizzelli	34-969-9956	2257760951	orizzelli1t@squarespace.com	3564278010207946	18
+496f20d3-7a9a-49f1-a895-a797e8011307	Valera O' Markey	69-254-9235	4884566637	vo1u@sun.com	5100140936488156	53
+af030357-a630-4b1a-9511-d863d75792b3	Lindsay Peres	67-590-8781	1078304638	lperes1v@msu.edu	5569316713806463	60
+2e023160-0bff-49e2-ba82-2ffc1419a56d	Ev Cottier	98-297-1917	5058043533	ecottier1w@illinois.edu	30581854004432	45
+90647b0d-930f-46d8-914d-4206b0c8e74a	Rasla Gaiger	03-951-7928	3425350453	rgaiger1x@mapy.cz	3542147126669074	36
+48bdba2a-b3e6-4ec0-bca9-8ee4b3d930bd	Gayler Chetter	91-395-5460	2777302537	gchetter1y@disqus.com	5602226437874268	69
+4fe86bc7-1e50-4aea-8ef0-c06e5e62e62f	Janela Gerding	54-375-6911	3428145889	jgerding1z@npr.org	3553791310501175	57
+4b41dcb6-1623-437e-b515-6a177a4d25e2	Rodolph Patinkin	96-009-6348	8476254206	rpatinkin20@edublogs.org	4508714823653311	31
+26bbfd90-0169-4b38-bedf-144a62691f90	Moore Kochs	25-019-4143	3539357936	mkochs21@eventbrite.com	201796486963762	60
+8d9e0962-9dd2-4200-8f94-ff40b3b5a259	Herold Pesek	97-116-3796	6276139647	hpesek22@blogger.com	3563569312980169	54
+ecb0a025-adc1-4d18-a63f-bcf1652e54b1	Allard Besson	23-069-4177	6317230257	abesson23@biblegateway.com	5010127397189778	68
+e0faa1dd-6026-4b40-8a01-d3c0a0094291	Katerine Clipsham	26-345-4198	7253846079	kclipsham24@ibm.com	3562643076523829	34
+e497f5b7-7d73-4e2e-bac1-2fee2c02bd00	Celestina McMylor	73-693-2458	9368439535	cmcmylor25@google.co.jp	30357152916241	44
+aefaf8a6-3cfe-4fb6-951d-93b624aa9d97	Berri Geddis	12-212-8299	1225788986	bgeddis26@opera.com	4844010118891804	23
+7fc5f4d6-f9fe-41ef-a456-83faf28aa471	Martynne Fawke	34-261-7446	6144532821	mfawke27@i2i.jp	560222787295668500	25
+37c06163-1d10-4479-85cf-e010070a4e28	Wash Kinde	78-368-2512	9154940247	wkinde28@bbc.co.uk	3528067219486855	54
+cf913884-8d55-4238-b763-b74db80e21a4	Amelie Mosson	80-743-4151	1811923139	amosson29@tinypic.com	3581728185584494	34
+bee789d4-526c-4bc2-a78d-4883c5034020	Hurlee Gethin	83-497-6189	8161085934	hgethin2a@skyrock.com	30236200825820	37
+89ad0469-2149-4bf6-b92f-f064da2debdd	Ole Sings	60-545-1557	6478436844	osings2b@tamu.edu	3538827198111461	48
+457e258c-c103-47f3-ac33-f81d9a00d033	Ray Leere	40-141-6051	4872789821	rleere2c@ask.com	5510224410918625	49
+634b14e6-41db-4315-9c65-bd6596d9a84b	Blaire Boughtflower	26-911-8581	8135998299	bboughtflower2d@barnesandnoble.com	5641829108290426	51
+d4f8ec30-b1d3-4d6a-867c-e28b3119877b	Rose Sowthcote	32-008-5245	5989150829	rsowthcote2e@mtv.com	344440104146496	52
+1909a18e-4825-4aca-abdd-0a72bda66711	Andria Egdell	82-017-8899	5782105797	aegdell2f@imdb.com	5018345569782871	60
+23b0d473-336c-4e64-8639-19561172d0e8	Rowney Doncaster	31-676-5253	3151692109	rdoncaster2g@addthis.com	5038445434420020314	20
+6d89d17c-39da-4a06-9fa0-b46e07bb5626	Sander Blint	31-478-3471	6222739125	sblint2h@slashdot.org	3534323712820070	65
+28b78a57-10a9-4edd-9ded-4ab2c643c0f9	Antonina Corness	23-840-7685	2371442866	acorness2i@cbc.ca	58938205775848799	36
+dfe97a6b-4ad9-437a-9104-46655bafa472	Jsandye Lannin	25-035-9244	8185660653	jlannin2j@wikimedia.org	5602255403764880	69
+01c5fd3c-68db-415e-826a-f572b737d3f5	Wat Rickaby	07-599-2213	2351084647	wrickaby2k@dmoz.org	5641824467725887070	52
+c145fc22-2984-43f5-b4d9-8d5ef31bf206	Traver Spearett	09-726-2436	2326939953	tspearett2l@weebly.com	3538235071698994	70
+05c79535-ea03-48ba-b586-2233191097ff	Sonnie Rountree	85-685-4812	9387304095	srountree2m@posterous.com	3586650405140508	27
+4b3a39eb-711a-4def-8fe4-23a9699eaa27	Amabelle Sainsbury	84-703-2913	5385097946	asainsbury2n@dmoz.org	3538538376233478	41
+b2adc314-85dd-46d3-938b-ecfe7008dc20	Gerianne Bandey	75-926-4463	9731732367	gbandey2o@businesswire.com	3549770848444923	35
+3bb535c9-1cc1-42fd-9d4e-cecb69a9fb1f	Harley Guerreru	59-956-4489	5077259295	hguerreru2p@go.com	3554735783694396	41
+567c239b-e736-42a9-9eb5-21d4db33bd11	Nicoli Arnowicz	69-673-5142	9477867381	narnowicz2q@cyberchimps.com	30244613902152	37
+f7b5723a-d00d-4109-9c46-3d1aa55aee81	Jolene Cracknell	82-203-3956	2701256892	jcracknell2r@1und1.de	3530124442968096	49
+5891b97f-cb4c-48ce-adf2-cfb2a9b886fd	Gradeigh Antoniak	28-295-4379	9393556057	gantoniak2s@yolasite.com	5602245497517716	36
+4819082b-2d0b-4464-b17e-a9b2211d1535	Sydel Beadell	58-149-0249	4071885136	sbeadell2t@infoseek.co.jp	4911379621301371	25
+0f4a0696-e20c-41a0-80be-db3a13a7a5bc	Tulley O'Hagerty	11-992-5310	5928343926	tohagerty2u@ezinearticles.com	67093343637668683	70
+9a07dbef-7ea8-434f-a9bb-2e36849bdd32	Adorne Theodore	25-082-7681	6343033311	atheodore2v@bing.com	3559873265285188	24
+57eae990-6658-4e11-b232-126293059fcd	Paolina Jimpson	67-733-7478	8149587168	pjimpson2w@jigsy.com	3558181048538134	36
+7ec9265b-5cc6-4cad-970e-09954a300e9b	Susann Killock	57-275-5620	1525788427	skillock2x@stanford.edu	3565361301384431	70
+e8b2f168-fa77-43cf-9377-5f2e681fdb4d	Darsey Briereton	63-237-7597	7069834849	dbriereton2y@ucoz.com	3552234724422713	27
+fb095c45-13d8-42e4-a805-19bd2a94a843	Cam Bernocchi	04-244-7686	6337136965	cbernocchi2z@devhub.com	3556510585773484	22
+e1be2478-b460-4e12-b4a6-07ef4b676f8c	Malachi Beatens	64-956-3035	6038170683	mbeatens30@prnewswire.com	4927091024315	65
+00b40823-3f66-4c0f-855f-cf750e384757	Garrick Plaskitt	35-166-5123	8651553163	gplaskitt31@mediafire.com	3580129310309140	35
+86818019-da52-4a05-8981-bb166650ff5b	Currie Winson	50-440-1219	3733334893	cwinson32@ed.gov	4175006619310095	44
+d66fb17f-4ee4-499a-9e6e-5c394b7346db	Tilda Winslett	46-867-5851	4325182897	twinslett33@wikispaces.com	6374899024676421	24
+b5a63e62-b1ff-4dff-bd63-c74f6445efb2	Demetra Dall	54-432-9735	3228272359	ddall34@harvard.edu	3565518150520106	28
+c6e574a4-6fb6-4730-87d2-ba0ed1bdce16	Timmie Kinnar	12-860-7088	8253260559	tkinnar35@wordpress.com	6771511596799566350	52
+188628df-fc85-464c-ae2b-9e10c1bec7af	Trudy Piercey	90-003-0663	9709145622	tpiercey36@wired.com	3552486431780045	57
+fa8cd2a8-268d-4202-b598-31326d6650cd	Adham Elson	12-536-9613	3887526837	aelson37@1688.com	3531969191804093	31
+19ec9e69-7d81-4c42-b28f-c4c3e8cdf7fd	Babita Richford	39-751-1687	6465382357	brichford38@businessweek.com	30353481938600	49
+cd781249-6b2c-4d7f-b340-442393d63197	Elliott Kyteley	28-704-7618	6386940708	ekyteley39@usda.gov	5048372594097210	44
+8eebbafa-c366-4553-acd0-a946a5adcbed	Rhona Shawyer	44-311-4703	4332010558	rshawyer3a@deviantart.com	30357787918190	32
+a4818a07-30e0-4d39-a8f2-a1c7e79288f4	Adrea Hulburd	70-869-0242	5698122332	ahulburd3b@tuttocitta.it	676787644068266445	38
+6379d9cb-5fa0-4369-8deb-b2273238f695	Rosalia Khalid	24-341-8562	4759416775	rkhalid3c@archive.org	201694138041055	46
+5746823e-c185-4b11-8f4c-17bbf7af92d0	Gaston Fateley	28-209-0031	4508181484	gfateley3d@sourceforge.net	5602253359282106	58
+20473b82-9ba8-49c4-8936-601662ec4e77	Lorry Warrick	39-283-9436	5847209750	lwarrick3e@google.fr	56022297454753938	33
+fd27002b-1f29-450a-9e3d-d5786ba0eb75	Arnuad Livoir	75-193-4340	9167702854	alivoir3f@china.com.cn	3587891831525958	40
+9f8f48cf-b200-4b1a-90e2-6b46927f857a	Katina Edson	60-576-8233	8149977148	kedson3g@ed.gov	3580156306553191	41
+25590680-8f65-4cd2-9ed4-218ad9dd768d	Gabrielle Cerman	28-659-6590	1591872227	gcerman3h@bizjournals.com	3529413302575049	54
+dffc1cf5-31fa-4882-9c40-7d21b9f30120	Anitra Kewish	68-866-7619	3153858108	akewish3i@reverbnation.com	3539353977599437	68
+a9f404fe-6768-4506-be67-66264ebab0fb	Modestia MacBean	35-743-0974	1355862273	mmacbean3j@slashdot.org	6762532937338108	59
+f46bfbd4-b9b0-46a3-9758-e77fc8b554a2	Hetty Toner	59-901-0291	1721441795	htoner3k@barnesandnoble.com	5602241004968872	66
+46b9e0b0-6150-4820-a756-a7069270d573	Egor Ireland	40-515-0164	7764025998	eireland3l@ezinearticles.com	201535533680551	30
+4eabbb1c-7821-43e0-ae63-b92e7b88bfd3	Felicle Chesman	41-297-4081	6089106277	fchesman3m@prlog.org	4017950723601	55
+5f6802c7-68ab-4227-85c1-a2d678b5c412	Arty Shackle	29-868-6003	7414033492	ashackle3n@people.com.cn	4917728271616377	19
+7053ba1a-33b7-4390-823a-e736d8e187fb	Gabriele Abele	85-844-4956	8087801039	gabele3o@eepurl.com	3529146199274918	21
+672a3827-8d6b-4bf6-8ed6-302839b924ba	Nevil Fantin	19-622-5367	2651868985	nfantin3p@miitbeian.gov.cn	4917468263785514	24
+9127bd03-27c8-4ad0-bbab-cf2f9416170a	Nev Teasey	88-399-7254	4796665548	nteasey3q@msu.edu	5100178105709291	34
+63f3c918-18e0-4ca5-822b-8cefe0c46b8a	Tilda Secretan	39-659-6820	5568270752	tsecretan3r@dyndns.org	3545403431162652	44
+0d1db935-3966-437b-9184-7cd6c09d762b	Isidora Jouaneton	93-332-2333	3746379312	ijouaneton3s@statcounter.com	3551442739701739	46
+355edfba-d696-4666-9529-cc7303bdbb3f	Jenica Essel	61-855-6155	4984750857	jessel3t@google.ca	4508814450740264	18
+2e91a7e1-868d-4749-8797-8fe3f12b3554	Zacharie Welfare	38-565-2629	7748664622	zwelfare3u@ow.ly	3583993960681752	35
+905005d0-b554-4ad6-8c6b-dd205d1721e3	Urson McSperron	55-256-9245	2432679605	umcsperron3v@phpbb.com	675928696169251355	60
+1edb1ab5-2fd0-42f7-89fb-914821d1c668	Silvie Larkby	85-722-6672	6138076202	slarkby3w@rambler.ru	372301086711183	29
+ce232bdc-35fa-4f8f-8ce8-4c670cdb8bcf	Carmina Rabbitt	99-898-7795	5034685816	crabbitt3x@technorati.com	201582223008446	50
+95972982-78c4-4855-a427-3dfc5df0983d	Myrwyn Benoey	15-317-0741	5874960392	mbenoey3y@g.co	374288914453054	55
+a06dfa80-8f84-4264-9908-7eb2f99e5260	Jacquelynn Tupman	07-417-0666	8891020295	jtupman3z@wikia.com	5602233399129012	56
+3c529f57-e7fc-4d3a-95a4-a048500b37d9	Guenevere Hardesty	07-933-2138	5625298111	ghardesty40@nature.com	3556699664661478	49
+d3a3fe89-f8f4-456c-aeeb-c1ff7ff13046	Constancia McRamsey	00-993-8280	1404053207	cmcramsey41@msn.com	6396038300020541	65
+d87f44c9-7211-45a8-bd34-b30c4f464dc6	Rozele Acarson	00-589-0233	9158875046	racarson42@posterous.com	5552572699848593	41
+137ce773-9784-4d2b-ae7d-d42db815839d	Ban Malenfant	40-780-6610	7755474958	bmalenfant43@bloglovin.com	3585166456594973	63
+7b213940-a708-48a8-a3af-d73b1b200b5a	Shamus Westfalen	54-571-0792	5378540277	swestfalen44@netvibes.com	6389909077528594	22
+eb8c24ba-1839-4c4a-8877-36c408bfe0da	Kipp Wikey	96-629-0685	4905084110	kwikey45@abc.net.au	3553348128652979	26
+\.
+
+
+--
+-- TOC entry 2816 (class 0 OID 16754)
+-- Dependencies: 197
+-- Data for Name: providers; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.providers (name, afm) FROM stdin;
+Thoughtworks	54-399-1032
+Youspan	69-319-9968
+Centizu	01-748-8217
+Realcube	02-873-5671
+Flashset	70-786-8727
+Demizz	02-281-6086
+Topicshots	06-665-2627
+Thoughtstorm	61-576-3641
+Meembee	05-299-7820
+Meetz	35-285-4904
+Yozio	95-732-0758
+Twitterlist	68-225-7916
+Yakijo	93-697-3099
+Browseblab	37-215-0143
+Edgeblab	13-803-6462
+Geba	22-470-1622
+Linklinks	44-313-3250
+Thoughtsphere	57-768-6790
+Edgepulse	92-960-4867
+Realblab	94-914-2132
+\.
+
+
+--
+-- TOC entry 2817 (class 0 OID 16759)
+-- Dependencies: 198
+-- Data for Name: tickets; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.tickets (id, title, category, start_date, end_date, price, available, location, provider) FROM stdin;
+614546f2-409e-4f53-82c3-08187125c076	Svensson, Svensson - I nöd och lust	Exhibition	2018-08-03	2018-08-07	66.42	33	3280 Towne Parkway	Flashset
+72a41cd6-85df-4cac-8fff-ceb5ca356e76	Romeo Is Bleeding	Concert	2018-05-15	2018-05-19	60.22	458	75 Menomonie Plaza	Meembee
+dbdbe80e-aa56-4d4b-b762-e3ca6ffcdc5a	Bolero (Uns et les autres, Les)	Presentaion	2018-12-25	2018-12-31	78.60	160	161 Lunder Terrace	Yozio
+4d5f2b79-00ff-48eb-9798-77923c0c1cae	Johnny Skidmarks	Concert	2019-06-28	2019-07-01	45.87	38	891 Maple Place	Browseblab
+29f11f2d-9b15-4748-baea-5998b19305df	Gentlemen of Fortune (Dzhentlmeny udachi)	Presentaion	2018-06-15	2018-06-21	4.49	454	57483 Stone Corner Place	Linklinks
+73aa43f3-ae71-4a66-a171-f65e6f44b7d8	Master of the House (Du skal ære din hustru) (Thou Shalt Honour Thy Wife)	Presentaion	2018-10-16	2018-10-20	77.67	345	18 Cardinal Crossing	Realblab
+fd61e374-3cd7-4353-a140-47d9186a9000	Thousand Clowns, A	Party	2018-12-30	2019-01-06	40.00	274	322 Russell Point	Thoughtsphere
+da25030d-e452-416e-aa3b-eef8708cbb95	Bad Blood: A Cautionary Tale 	Show	2018-06-20	2018-06-25	37.43	65	5697 Parkside Court	Topicshots
+2c875023-78e6-4690-9ccd-3a5d5f31c9d2	Swamp Thing	Concert	2019-06-01	2019-06-03	51.70	147	38 Westerfield Point	Demizz
+41f304c9-c734-4866-85ce-c13807b7557d	Spider-Man: The Ultimate Villain Showdown	Presentaion	2019-06-15	2019-06-22	36.32	268	222 East Lane	Thoughtworks
+8a9cbbde-2a4d-4434-a666-f6b64b5db5c6	Innerspace	Show	2018-05-26	2018-05-29	71.10	469	21622 Packers Junction	Yakijo
+de07c260-92e3-4d95-9a79-90340351bbe3	Lotta 2: Lotta flyttar hemifrån	Party	2018-05-12	2018-05-13	59.41	380	8658 Tennessee Plaza	Yakijo
+43607647-bc2a-4714-bc8a-1c16a58efcae	Stranger on the Prowl (Imbarco a mezzanotte)	Concert	2019-01-30	2019-01-31	8.57	452	44 Anhalt Court	Realcube
+cf576c98-e825-44ed-9c42-f3a9284c8be1	Little Secrets	Exhibition	2019-01-08	2019-01-15	65.91	415	4 Colorado Road	Flashset
+9c626354-6b9f-445f-bd7b-13dd016b050f	Distant Voices, Still Lives	Party	2019-06-06	2019-06-10	3.90	163	677 Village Crossing	Demizz
+58953f9b-b002-4d77-ad70-9ac97589b8d6	We Have a Pope (Habemus Papam)	Concert	2018-07-12	2018-07-17	79.72	500	919 Trailsway Hill	Demizz
+d42866a5-54c2-4d27-83bb-74917ff94914	Klip (Clip)	Show	2018-05-03	2018-05-09	27.61	359	6 West Trail	Demizz
+705c000d-7e55-4af8-b949-bbc98da18950	Budd Boetticher: An American Original 	Show	2019-01-31	2019-02-01	5.34	167	7676 Thompson Place	Meembee
+151db54f-27dd-4a88-b5b5-9579fdf16a0c	As I Lay Dying	Show	2019-05-01	2019-05-07	27.70	172	997 Goodland Drive	Browseblab
+e3a316c9-e0e2-426d-a86f-dcd1cbabecec	Eat Sleep Die (Äta sova dö)	Concert	2019-05-11	2019-05-13	29.55	100	7 Victoria Road	Demizz
+46a9774f-aca6-4dd0-aa2d-ddb3a64da83f	Letter for the King, The (Brief voor de koning, De)	Concert	2018-12-02	2018-12-08	64.97	86	7162 Jenna Pass	Browseblab
+7e8fead1-7258-4cc5-817b-1807f6812650	Mississippi Masala	Party	2019-05-29	2019-05-30	5.50	254	618 Delladonna Parkway	Youspan
+17e9e6a0-3b61-425b-8113-aa89de0268a3	Serving Sara	Presentaion	2019-04-25	2019-04-29	12.75	201	94 Weeping Birch Way	Edgeblab
+79b99f94-bb0b-4857-b02d-3f890df17f05	Horror of Dracula (Dracula)	Presentaion	2018-07-20	2018-07-24	36.41	115	4 Rigney Place	Browseblab
+16676529-964c-476d-96b4-fdb75b3a6067	After the Life	Party	2018-11-12	2018-11-13	54.43	284	0 Packers Street	Flashset
+baf5b6d2-bdfe-4374-ba62-951af068d12e	Average Little Man, An (Un borghese piccolo piccolo)	Exhibition	2019-06-08	2019-06-10	19.17	234	69127 Knutson Park	Realblab
+f2f33afd-4b6c-491b-ae21-60052c9bbad3	Igor	Concert	2018-07-17	2018-07-20	48.03	355	239 Burning Wood Circle	Demizz
+9d695e72-e4e8-4f0c-9a89-c8359efd8c4e	Brady Bunch Movie, The	Exhibition	2019-01-11	2019-01-12	38.73	209	6822 Coleman Park	Yakijo
+f40fea9b-b07d-4c4e-b1e9-c213dba6479b	Asterix and Cleopatra (Astérix et Cléopâtre)	Concert	2018-12-02	2018-12-03	59.99	304	13510 Fair Oaks Street	Realcube
+8521c760-95ae-4ab4-bf1f-cffb864bc4bd	Moving Alan	Show	2019-04-25	2019-05-01	67.89	266	5230 Florence Parkway	Youspan
+da36c060-0397-40c6-b2cc-e0ce52081e5a	Little Otik (Otesánek)	Exhibition	2018-12-12	2018-12-17	43.38	167	81449 Texas Alley	Meembee
+bac582d0-92a6-4e02-aaab-073da9c975f4	SOS - en segelsällskapsresa	Show	2019-05-16	2019-05-22	7.72	189	1 Tennyson Point	Twitterlist
+bb42d930-8b14-4cc7-86bb-1fe221743b6b	Citizen Dog (Mah nakorn)	Concert	2018-08-02	2018-08-05	7.59	433	70649 Dennis Hill	Linklinks
+2991900a-6d5e-40a2-8eff-38f9ec8c7e2f	The Beautiful Story	Show	2018-09-20	2018-09-23	39.73	98	337 Atwood Trail	Meetz
+96721378-ae85-49fb-b781-4aaf97f83706	Iron Mask, The	Presentaion	2018-11-06	2018-11-13	63.42	295	650 Tennessee Pass	Meetz
+b19d8b5b-e2e2-459d-93bf-9e6d89d4c217	Incredible Melting Man, The	Presentaion	2018-11-28	2018-12-02	1.07	118	530 Loomis Pass	Youspan
+4b9bf39e-758a-44fe-b149-cdab6164e943	Gomorrah (Gomorra)	Concert	2018-11-30	2018-12-05	10.45	433	4 Fair Oaks Drive	Twitterlist
+e39e2931-8ec1-4013-919a-491e308fb66a	Signs of Life (Lebenszeichen)	Party	2018-10-28	2018-10-30	69.49	447	2742 Katie Park	Twitterlist
+89510ac0-933c-4edd-a2ac-6f7ffde5e2db	Speed	Exhibition	2018-11-19	2018-11-22	30.30	132	64 Nobel Court	Flashset
+f38b4fcb-bf88-4db7-bdb5-6552599cb25c	Sinbad: The Fifth Voyage	Exhibition	2019-02-06	2019-02-07	11.09	361	33 Grim Junction	Thoughtworks
+9e5c01c4-a1c4-45d1-912b-fbf9f33a8105	Feeling Minnesota	Exhibition	2018-12-10	2018-12-16	44.31	448	6 Rowland Plaza	Yakijo
+44b8832c-3baa-4e4b-a98a-81ebeee69218	Chicago Joe and the Showgirl	Exhibition	2019-06-28	2019-06-30	8.89	407	370 Tomscot Parkway	Yakijo
+8aea8142-8b32-462b-9c7d-3d7ce7ffb646	Mamma Mia!	Concert	2019-05-22	2019-05-23	42.17	152	420 Granby Road	Twitterlist
+464bdef2-9628-42b9-ad7e-f06dbaf31570	Card Player, The (Il cartaio)	Presentaion	2018-10-26	2018-10-30	57.25	267	51 Karstens Plaza	Yozio
+2048a17e-0e6b-4612-a590-3d68e1ffdc1e	Bowfinger	Exhibition	2019-01-19	2019-01-26	55.48	231	020 Sugar Parkway	Realblab
+fb751cc2-6cc6-4cbb-a92d-6179d21bb40f	Candidate, The	Party	2019-03-22	2019-03-29	65.06	84	775 Roth Pass	Demizz
+4dae092b-e21c-4bee-b33b-738ce02bbd1c	Centenarian Who Climbed Out the Window and Vanished, The (Hundraåringen som klev ut genom fönstret och försvann)	Concert	2019-03-23	2019-03-27	32.00	70	9585 Waubesa Center	Thoughtstorm
+797b6511-188d-44e8-8c4a-1fad63a6cba5	Bereavement	Show	2018-09-12	2018-09-13	72.33	157	6 Roth Street	Demizz
+d3a59f44-7c30-4650-baa0-b5756b738f95	Grave Halloween	Presentaion	2018-07-27	2018-07-30	44.59	128	60 Melvin Street	Thoughtstorm
+43f2848a-024e-411a-bb76-5fe7c59bed04	Dark Matter	Concert	2018-12-14	2018-12-20	60.84	497	66 Bashford Court	Realblab
+16843a44-b733-45f8-a98f-edb733833293	Belle	Concert	2018-08-07	2018-08-09	76.81	439	421 Debra Way	Browseblab
+535a7cf0-b154-446c-a936-2d7a9a5c4d02	Entrapment	Exhibition	2018-09-10	2018-09-17	74.76	242	138 Reinke Parkway	Thoughtworks
+a6795514-f018-47c3-bb4a-90267bd2c752	North	Exhibition	2018-11-26	2018-12-02	49.00	19	433 Mayfield Drive	Twitterlist
+71ebdae1-1736-4a53-89f9-4d48df7ffb6e	Mr. Skeffington	Presentaion	2019-06-14	2019-06-15	43.25	2	722 Wayridge Parkway	Geba
+3933db82-a206-4c08-99de-d7d8ad5b1178	Titanic	Party	2018-05-06	2018-05-13	52.64	441	88377 Sundown Junction	Thoughtstorm
+89524129-bbec-49c5-a5f2-2f543d6e32c4	Brain Smasher... A Love Story (Bouncer and the Lady, The)	Show	2019-06-04	2019-06-08	5.62	484	7502 Bultman Drive	Twitterlist
+9c781d78-6940-4bba-807b-decd49df8e23	Enon opetukset	Presentaion	2018-08-28	2018-09-03	71.62	451	83546 Dottie Avenue	Geba
+b8d6e6f6-be1d-4210-a46d-a218df2f47e0	Think Like a Man Too	Show	2019-04-02	2019-04-05	25.94	388	3977 Corben Avenue	Edgepulse
+c624e720-e53e-4ad9-9211-a90221ec9ef4	Going Clear: Scientology and the Prison of Belief	Show	2018-10-24	2018-10-31	7.44	120	26241 Kenwood Park	Centizu
+c59920f0-5293-4120-a46b-46e4961957a6	Comfort and Joy	Show	2018-11-20	2018-11-21	59.83	92	11464 Rockefeller Crossing	Meetz
+65014bc2-13fd-4933-96d7-ee86d7c0d40b	Tevye	Exhibition	2018-12-08	2018-12-15	4.99	288	3365 Larry Park	Linklinks
+269b8205-7ca6-4eab-8732-76ee143883a2	Python	Presentaion	2018-08-24	2018-08-29	76.67	264	6 Mendota Trail	Thoughtstorm
+924c460b-8055-4092-ba3c-ee4eabdd6bc9	Versus	Presentaion	2019-02-22	2019-03-01	7.83	122	02 Lakewood Crossing	Youspan
+535402af-6e3c-48be-8ed2-bc572c45c44b	Ouija	Presentaion	2018-07-23	2018-07-26	11.53	79	67955 Reindahl Park	Meetz
+0eac35dc-2ca9-4d12-8289-ac4fe300b35b	Cameraman: The Life and Work of Jack Cardiff	Concert	2019-02-21	2019-02-22	26.05	157	41003 Mosinee Street	Geba
+ce9e10dd-3346-4112-bcd2-4ebd63dc6437	Suite Française	Concert	2018-06-19	2018-06-23	37.12	69	0 Pond Park	Centizu
+6cc2b617-322d-497d-92bb-4842470a08c8	Turkish Dance, Ella Lola	Presentaion	2019-01-01	2019-01-08	68.20	418	20 Manitowish Drive	Linklinks
+6397e23d-93ca-448a-af34-e1e2667c8e44	My Rainy Days	Presentaion	2018-09-03	2018-09-05	77.60	328	4638 Manitowish Way	Thoughtsphere
+a617c621-d813-45ad-8009-2e6cadb51d89	King Creole	Show	2019-04-09	2019-04-11	45.15	268	9 Riverside Lane	Meetz
+8c88803a-539f-4dcd-98be-ceb648cecc57	Starcrash (a.k.a. Star Crash)	Party	2018-12-03	2018-12-08	77.78	417	088 Eastwood Park	Thoughtsphere
+013d2715-f5d8-4803-a3c4-bdcad0b36cbb	10 Questions for the Dalai Lama	Show	2018-08-27	2018-09-02	12.68	477	96 Magdeline Place	Meembee
+02008bf5-e962-43b0-bf21-743256aaf479	Ju-on: The Curse 2	Concert	2018-05-27	2018-06-02	23.43	239	77 Maple Hill	Edgepulse
+0ff018a9-246a-48b1-af8d-e21af24bc1fb	Passion of Darkly Noon, The	Party	2018-10-07	2018-10-11	32.11	437	0 Nancy Parkway	Thoughtworks
+787e178c-5ab8-4090-8c13-dd9c2a94e3f1	11 Flowers (Wo 11)	Presentaion	2018-05-12	2018-05-15	65.78	289	6167 Hanover Plaza	Browseblab
+a2f0c3d3-af22-4736-94e9-d7dd6d635dc8	3some (Castillos de cartón)	Exhibition	2018-05-24	2018-05-29	20.39	176	11 Fuller Plaza	Thoughtsphere
+7dd2c217-6d83-4cad-a4a8-f2925e8fa03c	Buffalo Girls	Concert	2019-01-01	2019-01-06	20.28	450	8 Marcy Lane	Flashset
+f651ee63-d895-4900-bc09-9b4690d2cbe2	Flesh Gordon	Concert	2019-01-29	2019-02-03	70.83	445	66418 Ohio Parkway	Realblab
+a700a2f1-5358-46bc-9ebc-1c02d3ccf69b	Elektra	Exhibition	2018-05-27	2018-06-03	55.32	446	00 Bultman Road	Topicshots
+6d4d6a0f-9a23-40c6-9976-b83ad6f8b836	Unforgiven	Concert	2018-08-18	2018-08-20	78.23	129	2 Pepper Wood Way	Realcube
+0a46e7dc-9b1c-46ca-b321-2ff7c1391a08	Fata Morgana	Show	2018-06-29	2018-07-05	54.40	459	45 Calypso Avenue	Linklinks
+6d986260-cab3-4f50-88c9-ffd415e429f0	Trust	Show	2018-06-27	2018-07-02	78.25	239	6 Gateway Crossing	Thoughtstorm
+1aaa5b70-10d0-428a-8820-2ddc77085f67	Fury, The	Exhibition	2018-11-24	2018-11-28	59.62	309	08 Pond Road	Meembee
+04664bec-f8f4-46fa-97b1-50055e7d2fe6	Mercy 	Party	2019-03-26	2019-03-27	9.73	381	7679 Esker Park	Youspan
+4797abda-11f1-420a-9f57-aa78c4d9d98f	World Without Thieves, A (Tian xia wu zei)	Exhibition	2018-12-01	2018-12-07	45.42	129	84295 Acker Alley	Topicshots
+e2c2aa40-b927-452e-b187-df6b4a300b03	Reel Injun	Show	2019-06-14	2019-06-15	66.51	81	19 Dakota Park	Topicshots
+87115beb-5acc-4589-801c-4d90a0dd4d38	Suspect, The	Concert	2018-10-13	2018-10-19	58.43	353	6739 Coolidge Plaza	Thoughtworks
+d203d0ec-296c-4975-9b18-7272d816fd84	Trucker	Exhibition	2018-09-09	2018-09-10	53.09	389	00 Macpherson Avenue	Topicshots
+10524e7b-c19b-47f6-85ae-e185ac30427b	Profession of Arms, The (Il mestiere delle armi)	Show	2018-05-25	2018-05-26	31.67	422	242 Sherman Avenue	Flashset
+0d3568cf-4f0c-4ad7-94fa-92141453a66a	Barabbas	Party	2018-08-10	2018-08-16	26.78	373	08 Clarendon Park	Centizu
+bda84ed6-cf87-4be0-9c4c-b8faac803228	Taras Bulba	Presentaion	2018-07-26	2018-07-29	10.32	211	5 Waubesa Junction	Demizz
+d100b9d6-7a21-4ab8-b8d6-99cc5ad034b0	Client, The	Presentaion	2018-05-11	2018-05-16	62.72	165	0874 Schlimgen Circle	Centizu
+96aabfb5-b7ca-40ee-b852-89a110add01e	Dead Genesis	Concert	2019-04-14	2019-04-15	77.87	496	0516 Bonner Terrace	Meetz
+5ad8d0d5-bfb3-4bcd-934f-7c51b88ccb2f	When Trumpets Fade	Party	2019-05-16	2019-05-23	66.14	194	560 Jenna Junction	Meembee
+be7c9b7c-6fb2-42b0-8afe-4dbc7c59b540	Jack and Diane	Concert	2019-06-23	2019-06-29	11.38	203	2077 Hanover Alley	Flashset
+b826dc7a-b065-46d7-bd13-f5d6b3607a4d	Bride Flight	Party	2018-12-27	2018-12-29	3.16	81	20556 Graceland Parkway	Edgepulse
+2e666b2f-7a06-4e78-a3c2-43b17a730f5e	Deeper Shade of Blue, A	Presentaion	2018-11-04	2018-11-06	25.39	144	784 Scofield Plaza	Edgepulse
+d98f84bf-5a4f-4844-abd7-ce4df35ea81f	Not for or Against (Quite the Contrary) (Ni pour, ni contre (bien au contraire))	Concert	2019-03-05	2019-03-07	46.48	458	387 Elmside Court	Demizz
+fe1663c8-ccbc-4ed8-a74c-dc9c970d2d85	Girls Gone Dead	Concert	2018-09-11	2018-09-14	59.94	51	50658 Goodland Park	Demizz
+b518442d-0eb3-4a45-a375-f2c3f8e812c1	Business, The	Exhibition	2018-08-02	2018-08-07	40.08	206	96411 Katie Point	Youspan
+6df3ab83-91e6-48de-8aa4-da93a8adf5b9	Secuestrados (Kidnapped)	Presentaion	2019-01-21	2019-01-26	3.31	216	6788 Lakewood Lane	Geba
+284b60c6-cd38-4de3-adfb-e4731ff0478c	House of Games	Party	2019-03-25	2019-03-26	12.79	200	3 Kenwood Plaza	Thoughtsphere
+5fe00ed3-a80e-4509-95aa-8a5e2762e7b0	Asphyx, The	Exhibition	2019-03-06	2019-03-12	62.10	367	393 Swallow Alley	Browseblab
+15b7a36a-dd0f-4a8e-85b2-fb68ec6d2c06	Plot of Fear	Concert	2018-07-28	2018-07-31	36.53	157	582 Birchwood Avenue	Topicshots
+a709c42d-5ee5-4f98-8015-871b1f5a0f30	Corn Is Green, The	Party	2018-08-19	2018-08-25	67.70	20	172 Montana Street	Linklinks
+01f99a2a-b05e-42c0-8181-ed8476677978	Wake Island	Show	2019-06-24	2019-07-01	15.57	197	5 Goodland Terrace	Thoughtsphere
+fd6798fe-1286-4348-8e0e-b6f87791ccc3	Out California Way	Show	2018-08-05	2018-08-11	39.22	383	47 Manufacturers Park	Topicshots
+d5519002-7fb5-425b-81a2-47c0af0d7090	Crazy as Hell	Concert	2018-08-20	2018-08-26	77.47	269	894 John Wall Avenue	Thoughtworks
+297ee55b-57d4-4ad3-86c1-96167055ff4e	Blues Brothers 2000	Exhibition	2019-06-15	2019-06-19	70.48	337	0 Riverside Avenue	Twitterlist
+059c62d0-49eb-4b6b-a79b-b3d6037d6315	G.I. Joe: The Movie	Show	2019-06-29	2019-06-30	62.56	291	3651 Lillian Hill	Topicshots
+e86584d4-9941-4426-8ce7-acc86d250675	Anna	Show	2019-01-07	2019-01-11	12.63	270	4361 Express Street	Thoughtworks
+b791322b-675d-4b9e-afc9-d02b608104c5	Bundle of Joy	Show	2018-09-12	2018-09-14	45.96	200	430 Maywood Park	Youspan
+015e0c8d-ad4d-494a-9cde-bdbaaf96ed7f	No More School	Party	2018-07-07	2018-07-13	60.92	45	7525 Stoughton Circle	Centizu
+d9ba4341-3468-407b-a2b2-001065c8ca64	Make Them Die Slowly (Cannibal Ferox)	Exhibition	2019-01-31	2019-02-01	8.41	470	332 Gateway Street	Yozio
+a1ca2b71-25d8-45b3-8e66-0ffd0feca5e4	Boy with Green Hair, The	Presentaion	2019-01-04	2019-01-06	65.57	252	9 Thierer Parkway	Topicshots
+480d1e88-46bc-4baf-87e9-88d0523f6d4a	Absent (Ausente)	Concert	2019-04-12	2019-04-18	66.41	58	53 Grover Drive	Centizu
+e50d932d-e67f-4675-9e88-0ee125bd655b	Raajneeti	Show	2018-12-19	2018-12-22	73.56	462	0 Melody Trail	Demizz
+964df962-5188-4cf8-923d-2cc4778245e3	Tigerland	Party	2019-02-05	2019-02-11	27.09	454	13 Vera Court	Thoughtsphere
+3f048492-b1f9-41b4-9244-c5f1c7cf9c88	Jim Jefferies: BARE	Concert	2019-04-28	2019-04-29	35.41	41	6301 Sutteridge Avenue	Topicshots
+cb49ea10-79f8-422d-a0cf-da7a2e590d1e	Zeitgeist: The Movie	Show	2018-11-18	2018-11-25	62.84	411	45873 Anzinger Lane	Twitterlist
+60b9ef03-59cc-46a5-b972-7f081d1969cd	High Tech, Low Life	Show	2019-06-04	2019-06-10	5.59	298	91255 Schiller Court	Thoughtsphere
+6cd270e5-954f-4fe6-af55-7a8489b19c50	Sacrificio: Who Betrayed Che Guevara	Show	2019-01-17	2019-01-19	74.25	73	5044 Anhalt Circle	Linklinks
+e30ead0f-ff8e-4f8b-9c18-5217360576b6	Detonator, The	Concert	2019-01-19	2019-01-21	14.00	304	7178 Eagan Parkway	Realcube
+16ad21b5-1fcb-4aac-b733-4eb59d6fc053	Falling in Love Again	Party	2019-01-08	2019-01-09	23.08	303	2 Beilfuss Trail	Linklinks
+039365d6-09d7-422a-9735-6c852d66f99d	Dead End Drive-In	Exhibition	2018-11-24	2018-11-28	73.21	409	131 Debs Junction	Realcube
+0c75e50d-537d-4ea3-87bf-0bc12b2aa626	How Do You Write a Joe Schermann Song	Presentaion	2019-03-01	2019-03-04	71.55	466	36569 Manitowish Point	Thoughtworks
+d827ae43-f29a-42b3-b31b-46798e98df0f	Change of Plans (Le code a changé)	Show	2019-06-28	2019-07-01	16.19	310	89048 Macpherson Junction	Thoughtstorm
+7bdf06c0-340e-420b-9621-19fc4321f6a8	Almost Man, The (Mer eller mindre mann)	Concert	2019-03-02	2019-03-05	47.59	243	5 Clove Trail	Thoughtsphere
+3e1c6a98-18d9-4ed7-981e-d2d94455112f	Way Down East	Presentaion	2019-03-10	2019-03-11	50.39	247	7780 Buell Trail	Twitterlist
+35974a31-20f8-4e16-b24a-8ceccb79fe5a	Cobb	Exhibition	2018-10-04	2018-10-05	34.12	347	92563 Autumn Leaf Drive	Meembee
+5511e5ff-aebb-4209-841c-c24142838df2	Goyokin	Concert	2018-06-13	2018-06-15	26.30	196	71 Lakeland Park	Thoughtstorm
+0a8e6a83-264e-492c-931b-7fdf960ffcbd	Pelicanman (Pelikaanimies)	Exhibition	2019-04-13	2019-04-20	12.82	110	95 Dahle Terrace	Yozio
+3c474e79-b0c6-44d8-b039-38e6b8a55616	Sunfish, The (Klumpfisken)	Party	2019-04-24	2019-05-01	28.69	81	8 Chinook Plaza	Flashset
+0dca08d9-bd2a-4ccf-8128-db5c4a9969d1	David and Lisa	Party	2019-01-09	2019-01-13	32.52	33	90351 Division Way	Realblab
+4d00d27a-1f26-4ebf-961d-a785c7948948	Specials, The	Concert	2018-11-14	2018-11-20	19.76	493	93 Thackeray Crossing	Yozio
+550cbc0b-7ab1-42bb-a7ce-410ad142b617	The Legend of Awesomest Maximus	Show	2018-05-20	2018-05-22	61.58	251	869 Merchant Pass	Geba
+2b02104f-2f43-40a3-941f-8f76907bc88a	Faces in the Crowd	Concert	2018-12-21	2018-12-26	64.81	180	4 Onsgard Alley	Yozio
+2d7609d1-930b-4170-9647-053586b6909d	Fred & Vinnie	Exhibition	2018-05-20	2018-05-24	47.77	125	6190 Goodland Terrace	Edgepulse
+cdc1b291-47c4-482c-a5b9-6c40181d987f	Head Office	Party	2019-02-25	2019-02-27	50.66	455	20 Burrows Road	Meetz
+566302ca-a5a8-45f8-ad8b-6c2d8dbc0280	Harvie Krumpet	Show	2019-06-21	2019-06-25	50.39	204	27 Comanche Way	Youspan
+b38ee866-a0f5-4223-8622-592e2daabd61	36 Hours	Concert	2019-02-04	2019-02-11	75.84	96	240 Katie Terrace	Flashset
+1345d64e-d174-4a07-b8ee-e2bbab9ade73	Light at the Edge of the World, The	Party	2018-10-22	2018-10-28	53.68	86	7 Cottonwood Terrace	Twitterlist
+4f085238-6a6d-4674-b8dc-d93f233b2675	Butcher Boy, The	Exhibition	2019-03-09	2019-03-13	7.19	296	0948 Brentwood Hill	Edgeblab
+e7540f85-808f-4895-ae77-67891fbaa4f8	Killing Season	Party	2019-02-17	2019-02-20	27.85	162	58539 Kensington Terrace	Demizz
+2c3ae3b6-7fb0-48db-bb4c-57a371f8d642	Punisher: War Zone	Concert	2019-04-04	2019-04-06	74.79	357	2 Main Pass	Topicshots
+1bd9dd12-3b93-4c8c-be57-80a27a2f5928	Father and Guns (De père en flic)	Concert	2019-04-17	2019-04-19	67.93	375	6797 Stone Corner Point	Flashset
+085039a2-ad5b-45c0-bfb8-504d8daac4ea	Tomorrow, When the War Began	Party	2018-08-20	2018-08-25	74.66	445	82069 Shasta Trail	Meetz
+f4938d7c-e407-46b8-85ba-fe7a12155dd4	Dragon Gate Inn (Dragon Inn) (Long men kezhan)	Exhibition	2018-05-24	2018-05-28	51.59	175	2 5th Avenue	Edgepulse
+3c407de7-fff0-4df8-8a78-7342f56253f6	Cold Mountain	Concert	2019-01-17	2019-01-23	53.24	63	21398 School Pass	Thoughtsphere
+0cdc1749-31e9-4542-975c-e9469a88e616	Young Man with a Horn	Concert	2019-05-03	2019-05-05	9.96	473	8 Di Loreto Way	Meembee
+6b98be0c-391c-44d0-8246-a0227ac979bb	California Split	Exhibition	2018-12-14	2018-12-19	50.77	354	9 Bellgrove Center	Thoughtworks
+98dfb3e1-87ca-4ca9-93f1-ef5956400442	Carnosaur 2	Party	2018-08-23	2018-08-27	61.66	121	1192 Mayer Trail	Meetz
+d49ec7fe-fc0b-49f2-81da-8a0e0a3fc697	2046	Show	2018-06-08	2018-06-15	43.35	68	499 Westport Road	Twitterlist
+bf244868-8542-4870-b00d-f0b5a6c98a08	Call Northside 777	Concert	2019-05-24	2019-05-27	9.46	306	287 Starling Lane	Youspan
+56f33e89-99b8-4770-b8f8-69e0ba53932e	Return to Homs, The	Party	2018-08-24	2018-08-27	5.72	56	93 Jenna Parkway	Geba
+26aea7ea-63cd-4199-bd86-e114b2ae5032	Gunbuster (Top wo Narae)	Concert	2018-07-28	2018-07-29	33.60	101	81 Debs Alley	Demizz
+b940df3c-3eeb-4545-827b-aff62eda2269	Ju-on: White Ghost	Party	2018-08-12	2018-08-17	53.67	262	162 Morrow Street	Thoughtstorm
+d890b6f2-9573-4b5d-9b85-30e516d365bf	The Land Before Time VIII: The Big Freeze	Party	2019-04-26	2019-05-03	75.69	130	263 Anniversary Alley	Topicshots
+8c8a00f1-c0c8-4a45-8572-33d61f13cb2f	Jackpot	Concert	2018-12-31	2019-01-01	28.16	22	91 Dwight Center	Linklinks
+dd08d2f5-c30e-4367-9d76-64781083f00a	Sweet Rush (Tatarak)	Show	2018-10-09	2018-10-14	50.99	259	14310 Washington Plaza	Demizz
+4813703f-9d06-4355-998d-bca053aaaa4e	The Lego Movie	Presentaion	2019-04-01	2019-04-03	67.85	297	0396 Golf Course Court	Thoughtworks
+ac96e1e4-6883-4e8d-b33a-0b6d7fb202ab	Tom and Jerry: A Nutcracker Tale	Exhibition	2018-08-15	2018-08-20	5.77	183	616 Hovde Parkway	Flashset
+b8f06642-90e7-43e1-a721-fe534ba203bb	Stone Reader	Party	2018-11-13	2018-11-14	35.95	493	0 Village Green Court	Centizu
+4bf89700-3d85-4c59-9c5a-70d2b869bfb2	Pursuit of D.B. Cooper, The (a.k.a. Pursuit)	Party	2018-05-27	2018-05-29	63.57	186	0229 Buena Vista Point	Demizz
+01427207-a535-438c-8260-ad2dbd691db7	Ivans xtc.	Presentaion	2019-05-12	2019-05-17	46.16	500	5 Hudson Hill	Yakijo
+6539de5c-8e4d-46a4-b1a1-2ece322cc4ea	How to Stuff a Wild Bikini	Exhibition	2018-10-12	2018-10-19	76.84	435	5 Kropf Alley	Edgeblab
+85876f5b-05b1-49ba-826f-76cf698573b7	Heiress, The	Show	2019-02-15	2019-02-20	33.78	355	88 Thierer Center	Thoughtworks
+2e3f1881-b07b-4a97-9482-4212922ebd13	What Would Jesus Buy?	Presentaion	2018-05-20	2018-05-21	73.83	105	98012 Sauthoff Terrace	Geba
+88192bf2-e49c-4125-8a76-0da9c43b65bd	Ginger and Fred (Ginger e Fred)	Show	2018-08-06	2018-08-09	53.07	308	25 Marcy Junction	Linklinks
+e6319644-7192-4f35-858a-1726e61ce37f	Last Angry Man, The	Party	2018-09-28	2018-09-30	33.82	54	4 Wayridge Place	Twitterlist
+7bc4ef7d-09bb-4fe7-8f4c-78f7d850021a	London	Presentaion	2019-05-16	2019-05-20	59.82	261	7228 Hintze Pass	Yozio
+0934ffef-e05c-4e6f-b204-c30adf4ff008	Even Dwarfs Started Small (Auch Zwerge haben klein angefangen)	Show	2018-07-18	2018-07-21	58.31	232	5886 Glacier Hill Court	Meetz
+31876faf-aa95-4112-925b-a29774708753	Honeymoon in Vegas	Party	2018-06-11	2018-06-14	31.46	228	6 Dorton Plaza	Centizu
+e0b3423e-e5f4-4f60-9ae5-3a9229e4b65d	Return	Concert	2018-05-08	2018-05-13	51.23	197	50 Stephen Road	Meetz
+6ed87320-d6ad-4b6b-a649-8985ed924cae	Confidence Girl	Concert	2018-10-25	2018-10-26	63.19	463	8 Oneill Parkway	Yakijo
+64220bfc-4400-4e47-819c-4791e4aabf95	Billy Budd	Show	2018-10-02	2018-10-05	20.17	133	099 Esch Point	Meembee
+1122a220-ce66-456c-866a-9cbbe32b17e1	Enough	Exhibition	2019-05-30	2019-06-04	10.86	4	64 Jana Parkway	Linklinks
+4cd0be6a-5554-442b-84dc-e48432ebfee3	Chloe	Presentaion	2018-06-01	2018-06-05	67.21	386	43706 Harper Alley	Twitterlist
+60f8b8c9-d508-4f40-88eb-c0cbdf06db4d	Stranger on the Prowl (Imbarco a mezzanotte)	Presentaion	2018-06-11	2018-06-12	41.75	241	0451 Moulton Center	Geba
+a61a297a-7046-4eb8-a9e2-869fe325ab8e	Shades of Fern (Stín kapradiny)	Show	2018-06-14	2018-06-15	29.45	428	43366 Weeping Birch Lane	Meetz
+8709f342-d01a-491f-be37-43a7b9ff8d88	Sting, The	Exhibition	2019-03-31	2019-04-02	75.10	280	831 Swallow Terrace	Demizz
+5fbc9989-fa6b-4289-995a-bdb12b1062c0	Bad Asses (Bad Ass 2)	Presentaion	2019-05-28	2019-06-04	56.14	179	113 Bonner Circle	Realblab
+a8754384-7f40-46e7-9ba8-8d2d648fb065	Riffraff	Concert	2018-05-16	2018-05-19	69.86	215	20 Delaware Avenue	Meembee
+132f0b0e-0573-417b-936c-a86508f5efa4	Giliap	Presentaion	2018-08-09	2018-08-16	70.39	129	82 Menomonie Alley	Centizu
+79d0a820-c302-4a14-91ae-0d35199bd6bb	Blackwoods	Concert	2018-09-02	2018-09-04	48.36	17	7651 Acker Road	Twitterlist
+c89f01c1-356f-4161-ac3a-07b034979cfd	Twelve Angry Men	Concert	2018-10-11	2018-10-17	34.26	182	57679 Melvin Street	Realblab
+408d2c07-74c7-4493-934b-5515909ddaa1	Shane	Exhibition	2019-02-14	2019-02-15	57.90	435	12 Pawling Pass	Edgeblab
+\.
+
+
+--
+-- TOC entry 2818 (class 0 OID 16769)
+-- Dependencies: 199
+-- Data for Name: transactions; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.transactions (cust_id, ticket_id, ticket_num, ticket_price, date) FROM stdin;
+75e8d83e-e811-4b7e-8ee5-0d7cd7e7508f	6d986260-cab3-4f50-88c9-ffd415e429f0	83	78.25	2019-03-14
+f792601c-f49f-4b19-a29d-21ce1aa80104	e39e2931-8ec1-4013-919a-491e308fb66a	130	69.49	2019-04-18
+3fe18e26-0388-421f-97df-79b16963bba3	98dfb3e1-87ca-4ca9-93f1-ef5956400442	18	61.66	2019-04-15
+520f99dd-a369-420f-bf67-7c91c7d25482	b518442d-0eb3-4a45-a375-f2c3f8e812c1	167	40.08	2019-03-18
+93dd6ab1-c209-4335-8c72-dc95d6409c05	e6319644-7192-4f35-858a-1726e61ce37f	91	33.82	2019-04-28
+c10edcfe-0b50-4a44-b65f-f3c1efa04edf	bb42d930-8b14-4cc7-86bb-1fe221743b6b	46	7.59	2019-04-01
+19f567da-cf0f-4586-99f1-02289699a497	89510ac0-933c-4edd-a2ac-6f7ffde5e2db	156	30.30	2019-04-23
+abac17a1-8f99-4e95-b1ef-aab819c5184d	e50d932d-e67f-4675-9e88-0ee125bd655b	27	73.56	2019-03-19
+9d122f9b-f21f-4555-9e99-77fd8136a8d8	b8f06642-90e7-43e1-a721-fe534ba203bb	134	35.95	2019-03-23
+abcb135f-83f3-4304-88f3-dcc62e75740c	2991900a-6d5e-40a2-8eff-38f9ec8c7e2f	162	39.73	2019-03-24
+9822f78b-869f-4b2b-a3a6-8a6cfbfd8a8a	3c407de7-fff0-4df8-8a78-7342f56253f6	120	53.24	2019-03-21
+188b5d4a-c7fe-4157-a11b-726d67b1f5d2	b8f06642-90e7-43e1-a721-fe534ba203bb	54	35.95	2019-04-02
+9e114e1c-74dc-4cde-b16b-eeecd72e0424	787e178c-5ab8-4090-8c13-dd9c2a94e3f1	190	65.78	2019-04-22
+6008809e-c087-4069-90ac-8dba5de9ac43	7dd2c217-6d83-4cad-a4a8-f2925e8fa03c	42	20.28	2019-03-05
+425bd285-6f1c-439a-be03-b5443cb6e8d2	0eac35dc-2ca9-4d12-8289-ac4fe300b35b	161	26.05	2019-03-05
+c7d3d71d-d732-42a8-abd9-cbdfe88f95e4	d98f84bf-5a4f-4844-abd7-ce4df35ea81f	193	46.48	2019-03-12
+bad19c8f-88c9-4ce7-89aa-d5b4854419d6	3933db82-a206-4c08-99de-d7d8ad5b1178	1	52.64	2019-04-15
+c5af083e-10e3-4dee-978f-d340708f1606	797b6511-188d-44e8-8c4a-1fad63a6cba5	131	72.33	2019-04-16
+f38add98-61af-4646-b80e-ad62c23ec16b	039365d6-09d7-422a-9735-6c852d66f99d	59	73.21	2019-03-19
+6e596cb2-3c46-4b60-9b1d-2a5fcf90c998	6539de5c-8e4d-46a4-b1a1-2ece322cc4ea	109	76.84	2019-04-12
+b4aa986e-e01b-4b4c-86c0-3bf9205ca526	79b99f94-bb0b-4857-b02d-3f890df17f05	180	36.41	2019-03-02
+8a7f7161-1d7c-40d0-83df-8ad21913e721	f4938d7c-e407-46b8-85ba-fe7a12155dd4	108	51.59	2019-03-25
+96a081bb-8fec-4f45-89fa-cc8433b6f106	87115beb-5acc-4589-801c-4d90a0dd4d38	60	58.43	2019-03-28
+da6078e9-9a84-4c52-ba3d-4d691c518a61	15b7a36a-dd0f-4a8e-85b2-fb68ec6d2c06	25	36.53	2019-03-08
+148c0071-4979-415c-8808-79e7487510f2	5fbc9989-fa6b-4289-995a-bdb12b1062c0	132	56.14	2019-04-05
+2729bf30-73aa-4b4a-be69-3c48928f777c	0934ffef-e05c-4e6f-b204-c30adf4ff008	197	58.31	2019-03-05
+682d042a-b476-488a-b529-742fa827604a	02008bf5-e962-43b0-bf21-743256aaf479	119	23.43	2019-03-22
+39250568-b6c8-4e2b-ae48-ac5774c58b03	d100b9d6-7a21-4ab8-b8d6-99cc5ad034b0	185	62.72	2019-04-24
+06d4f1d1-18b5-4372-8f48-0fee5f2053a3	de07c260-92e3-4d95-9a79-90340351bbe3	156	59.41	2019-03-11
+971974be-a9c8-4ba3-97c3-1dbb292f0333	566302ca-a5a8-45f8-ad8b-6c2d8dbc0280	124	50.39	2019-03-23
+c116f1c8-5046-4173-867d-d43b35391f28	f2f33afd-4b6c-491b-ae21-60052c9bbad3	5	48.03	2019-05-01
+d6fa270f-0bd2-4b95-acbe-05944ce59945	0a46e7dc-9b1c-46ca-b321-2ff7c1391a08	198	54.40	2019-04-18
+5e7a6ffb-8dc3-4df7-bd81-0f70b8c6294b	96aabfb5-b7ca-40ee-b852-89a110add01e	145	77.87	2019-04-22
+622818a8-61a4-4680-87ab-962d3311d853	41f304c9-c734-4866-85ce-c13807b7557d	170	36.32	2019-03-14
+b439c060-eee0-407e-93a6-12a0f0bf0bc0	2b02104f-2f43-40a3-941f-8f76907bc88a	6	64.81	2019-03-09
+a6e7dd15-6161-42e5-b282-e431bec79b66	16ad21b5-1fcb-4aac-b733-4eb59d6fc053	128	23.08	2019-04-03
+b3402da9-5524-4f17-959c-1c1a566abd69	039365d6-09d7-422a-9735-6c852d66f99d	90	73.21	2019-04-04
+e4ab6f72-6647-4fff-89dc-4b481f0ab5c4	15b7a36a-dd0f-4a8e-85b2-fb68ec6d2c06	15	36.53	2019-04-16
+91f90fd8-15e7-4466-a68c-025089851cd5	b791322b-675d-4b9e-afc9-d02b608104c5	197	45.96	2019-04-01
+6aea7bba-c491-4a8e-8a5e-bc06750083e0	01f99a2a-b05e-42c0-8181-ed8476677978	32	15.57	2019-03-13
+1f1c74e4-bb2b-43fe-a4e5-7e3012f8f6d8	2c3ae3b6-7fb0-48db-bb4c-57a371f8d642	22	74.79	2019-03-03
+90562646-eb92-4ff4-8274-03932727e659	d9ba4341-3468-407b-a2b2-001065c8ca64	147	8.41	2019-03-10
+45a38514-2b25-429f-b3d7-24db986a42db	b8f06642-90e7-43e1-a721-fe534ba203bb	66	35.95	2019-03-09
+d084242f-a193-47f2-a709-6245fd8d0aa4	fd6798fe-1286-4348-8e0e-b6f87791ccc3	175	39.22	2019-03-07
+d4e818c7-18f0-4296-bdbb-a0dfaa4c4be2	2e666b2f-7a06-4e78-a3c2-43b17a730f5e	115	25.39	2019-04-28
+42a43327-62f7-4c5f-a1a4-b2ac27e69da1	2991900a-6d5e-40a2-8eff-38f9ec8c7e2f	96	39.73	2019-04-26
+9c61d8e6-7b17-474b-be12-2a07a9bf7e19	0a8e6a83-264e-492c-931b-7fdf960ffcbd	107	12.82	2019-04-02
+6e09cd90-11e6-472a-a22a-3dd7b80ed7ce	3f048492-b1f9-41b4-9244-c5f1c7cf9c88	166	35.41	2019-05-01
+dd354f82-c4dc-43b7-a4f7-5ba91447e1a7	9c781d78-6940-4bba-807b-decd49df8e23	83	71.62	2019-04-08
+9990e83b-e4ba-4c8c-be88-2c495809eb07	6d4d6a0f-9a23-40c6-9976-b83ad6f8b836	129	78.23	2019-03-02
+d7a8ffca-0732-4132-9842-ed4ad7b4d461	5ad8d0d5-bfb3-4bcd-934f-7c51b88ccb2f	18	66.14	2019-04-29
+d9e81440-2273-43e8-bb79-4f11ab28b05b	9c626354-6b9f-445f-bd7b-13dd016b050f	145	3.90	2019-04-06
+bbd81cea-a28a-43e5-ab8a-53f682b29bf3	6b98be0c-391c-44d0-8246-a0227ac979bb	36	50.77	2019-05-01
+a401fad2-4862-4525-8bb3-e9b724335fd1	6ed87320-d6ad-4b6b-a649-8985ed924cae	48	63.19	2019-03-06
+c3913562-ec1e-4139-8005-d180e2d58593	4d5f2b79-00ff-48eb-9798-77923c0c1cae	31	45.87	2019-03-17
+4451789d-bded-4e9c-a391-85e32ad6175e	46a9774f-aca6-4dd0-aa2d-ddb3a64da83f	152	64.97	2019-04-29
+c81c4c3d-25d7-49f8-9212-20eb322102d7	3c474e79-b0c6-44d8-b039-38e6b8a55616	123	28.69	2019-04-29
+52466041-b284-4805-890a-e9e4d3279216	464bdef2-9628-42b9-ad7e-f06dbaf31570	140	57.25	2019-03-16
+42d4ffcc-9d10-4e9f-b997-b5ec73c51564	71ebdae1-1736-4a53-89f9-4d48df7ffb6e	190	43.25	2019-04-11
+5bf2f871-a9f4-4c77-90ff-91e5435eceb7	f40fea9b-b07d-4c4e-b1e9-c213dba6479b	82	59.99	2019-04-26
+d209ff27-92b1-43b2-beda-1d9732302261	a61a297a-7046-4eb8-a9e2-869fe325ab8e	89	29.45	2019-03-31
+7dae6269-8429-4e9f-a344-13d6f4edb236	7bdf06c0-340e-420b-9621-19fc4321f6a8	26	47.59	2019-04-10
+2324ee0e-edc2-4037-9a17-5d5818809c5d	0a46e7dc-9b1c-46ca-b321-2ff7c1391a08	172	54.40	2019-04-06
+e74edfe0-42cc-4392-abc6-6e54d10fffad	ce9e10dd-3346-4112-bcd2-4ebd63dc6437	70	37.12	2019-03-25
+c834638f-cfae-419d-92ba-5c0e68ac48b9	3e1c6a98-18d9-4ed7-981e-d2d94455112f	151	50.39	2019-04-03
+6dc22722-7f79-413f-93e5-1a82a23d6cee	baf5b6d2-bdfe-4374-ba62-951af068d12e	42	19.17	2019-04-28
+496f20d3-7a9a-49f1-a895-a797e8011307	fe1663c8-ccbc-4ed8-a74c-dc9c970d2d85	156	59.94	2019-04-20
+af030357-a630-4b1a-9511-d863d75792b3	1bd9dd12-3b93-4c8c-be57-80a27a2f5928	1	67.93	2019-03-22
+2e023160-0bff-49e2-ba82-2ffc1419a56d	fd61e374-3cd7-4353-a140-47d9186a9000	19	40.00	2019-04-14
+90647b0d-930f-46d8-914d-4206b0c8e74a	7dd2c217-6d83-4cad-a4a8-f2925e8fa03c	25	20.28	2019-04-13
+48bdba2a-b3e6-4ec0-bca9-8ee4b3d930bd	cdc1b291-47c4-482c-a5b9-6c40181d987f	30	50.66	2019-03-05
+4fe86bc7-1e50-4aea-8ef0-c06e5e62e62f	3933db82-a206-4c08-99de-d7d8ad5b1178	123	52.64	2019-04-20
+4b41dcb6-1623-437e-b515-6a177a4d25e2	7e8fead1-7258-4cc5-817b-1807f6812650	116	5.50	2019-04-24
+26bbfd90-0169-4b38-bedf-144a62691f90	6cd270e5-954f-4fe6-af55-7a8489b19c50	2	74.25	2019-05-01
+8d9e0962-9dd2-4200-8f94-ff40b3b5a259	8709f342-d01a-491f-be37-43a7b9ff8d88	170	75.10	2019-03-02
+ecb0a025-adc1-4d18-a63f-bcf1652e54b1	8521c760-95ae-4ab4-bf1f-cffb864bc4bd	154	67.89	2019-03-12
+e0faa1dd-6026-4b40-8a01-d3c0a0094291	72a41cd6-85df-4cac-8fff-ceb5ca356e76	179	60.22	2019-03-23
+e497f5b7-7d73-4e2e-bac1-2fee2c02bd00	b518442d-0eb3-4a45-a375-f2c3f8e812c1	139	40.08	2019-04-20
+aefaf8a6-3cfe-4fb6-951d-93b624aa9d97	d9ba4341-3468-407b-a2b2-001065c8ca64	118	8.41	2019-03-11
+7fc5f4d6-f9fe-41ef-a456-83faf28aa471	a709c42d-5ee5-4f98-8015-871b1f5a0f30	133	67.70	2019-04-27
+37c06163-1d10-4479-85cf-e010070a4e28	2c3ae3b6-7fb0-48db-bb4c-57a371f8d642	66	74.79	2019-03-28
+cf913884-8d55-4238-b763-b74db80e21a4	5511e5ff-aebb-4209-841c-c24142838df2	4	26.30	2019-04-08
+bee789d4-526c-4bc2-a78d-4883c5034020	059c62d0-49eb-4b6b-a79b-b3d6037d6315	165	62.56	2019-04-15
+89ad0469-2149-4bf6-b92f-f064da2debdd	89510ac0-933c-4edd-a2ac-6f7ffde5e2db	38	30.30	2019-03-04
+457e258c-c103-47f3-ac33-f81d9a00d033	1bd9dd12-3b93-4c8c-be57-80a27a2f5928	24	67.93	2019-03-04
+634b14e6-41db-4315-9c65-bd6596d9a84b	2991900a-6d5e-40a2-8eff-38f9ec8c7e2f	197	39.73	2019-04-25
+d4f8ec30-b1d3-4d6a-867c-e28b3119877b	6539de5c-8e4d-46a4-b1a1-2ece322cc4ea	176	76.84	2019-03-29
+23b0d473-336c-4e64-8639-19561172d0e8	72a41cd6-85df-4cac-8fff-ceb5ca356e76	135	60.22	2019-03-23
+6d89d17c-39da-4a06-9fa0-b46e07bb5626	87115beb-5acc-4589-801c-4d90a0dd4d38	120	58.43	2019-03-25
+28b78a57-10a9-4edd-9ded-4ab2c643c0f9	88192bf2-e49c-4125-8a76-0da9c43b65bd	60	53.07	2019-04-24
+dfe97a6b-4ad9-437a-9104-46655bafa472	8a9cbbde-2a4d-4434-a666-f6b64b5db5c6	59	71.10	2019-03-26
+01c5fd3c-68db-415e-826a-f572b737d3f5	d49ec7fe-fc0b-49f2-81da-8a0e0a3fc697	115	43.35	2019-03-05
+c145fc22-2984-43f5-b4d9-8d5ef31bf206	4b9bf39e-758a-44fe-b149-cdab6164e943	107	10.45	2019-03-08
+05c79535-ea03-48ba-b586-2233191097ff	a8754384-7f40-46e7-9ba8-8d2d648fb065	120	69.86	2019-03-24
+4b3a39eb-711a-4def-8fe4-23a9699eaa27	4d5f2b79-00ff-48eb-9798-77923c0c1cae	104	45.87	2019-04-03
+b2adc314-85dd-46d3-938b-ecfe7008dc20	e0b3423e-e5f4-4f60-9ae5-3a9229e4b65d	130	51.23	2019-04-14
+3bb535c9-1cc1-42fd-9d4e-cecb69a9fb1f	f4938d7c-e407-46b8-85ba-fe7a12155dd4	49	51.59	2019-04-15
+567c239b-e736-42a9-9eb5-21d4db33bd11	2991900a-6d5e-40a2-8eff-38f9ec8c7e2f	200	39.73	2019-03-18
+f7b5723a-d00d-4109-9c46-3d1aa55aee81	26aea7ea-63cd-4199-bd86-e114b2ae5032	199	33.60	2019-03-29
+5891b97f-cb4c-48ce-adf2-cfb2a9b886fd	7e8fead1-7258-4cc5-817b-1807f6812650	6	5.50	2019-04-05
+4819082b-2d0b-4464-b17e-a9b2211d1535	535a7cf0-b154-446c-a936-2d7a9a5c4d02	145	74.76	2019-04-29
+0f4a0696-e20c-41a0-80be-db3a13a7a5bc	4d00d27a-1f26-4ebf-961d-a785c7948948	30	19.76	2019-03-04
+9a07dbef-7ea8-434f-a9bb-2e36849bdd32	0d3568cf-4f0c-4ad7-94fa-92141453a66a	84	26.78	2019-03-28
+57eae990-6658-4e11-b232-126293059fcd	cf576c98-e825-44ed-9c42-f3a9284c8be1	166	65.91	2019-04-04
+7ec9265b-5cc6-4cad-970e-09954a300e9b	b8f06642-90e7-43e1-a721-fe534ba203bb	165	35.95	2019-04-05
+e8b2f168-fa77-43cf-9377-5f2e681fdb4d	fe1663c8-ccbc-4ed8-a74c-dc9c970d2d85	17	59.94	2019-03-11
+fb095c45-13d8-42e4-a805-19bd2a94a843	f2f33afd-4b6c-491b-ae21-60052c9bbad3	78	48.03	2019-04-02
+e1be2478-b460-4e12-b4a6-07ef4b676f8c	cdc1b291-47c4-482c-a5b9-6c40181d987f	168	50.66	2019-04-04
+00b40823-3f66-4c0f-855f-cf750e384757	059c62d0-49eb-4b6b-a79b-b3d6037d6315	170	62.56	2019-03-10
+86818019-da52-4a05-8981-bb166650ff5b	cb49ea10-79f8-422d-a0cf-da7a2e590d1e	87	62.84	2019-03-21
+d66fb17f-4ee4-499a-9e6e-5c394b7346db	d9ba4341-3468-407b-a2b2-001065c8ca64	66	8.41	2019-03-26
+b5a63e62-b1ff-4dff-bd63-c74f6445efb2	2d7609d1-930b-4170-9647-053586b6909d	169	47.77	2019-04-20
+c6e574a4-6fb6-4730-87d2-ba0ed1bdce16	b826dc7a-b065-46d7-bd13-f5d6b3607a4d	125	3.16	2019-03-24
+188628df-fc85-464c-ae2b-9e10c1bec7af	6cc2b617-322d-497d-92bb-4842470a08c8	125	68.20	2019-03-28
+fa8cd2a8-268d-4202-b598-31326d6650cd	89524129-bbec-49c5-a5f2-2f543d6e32c4	155	5.62	2019-04-25
+19ec9e69-7d81-4c42-b28f-c4c3e8cdf7fd	a1ca2b71-25d8-45b3-8e66-0ffd0feca5e4	129	65.57	2019-03-06
+cd781249-6b2c-4d7f-b340-442393d63197	f40fea9b-b07d-4c4e-b1e9-c213dba6479b	118	59.99	2019-04-18
+8eebbafa-c366-4553-acd0-a946a5adcbed	5fe00ed3-a80e-4509-95aa-8a5e2762e7b0	172	62.10	2019-04-03
+a4818a07-30e0-4d39-a8f2-a1c7e79288f4	2048a17e-0e6b-4612-a590-3d68e1ffdc1e	175	55.48	2019-03-04
+6379d9cb-5fa0-4369-8deb-b2273238f695	8aea8142-8b32-462b-9c7d-3d7ce7ffb646	123	42.17	2019-03-07
+5746823e-c185-4b11-8f4c-17bbf7af92d0	085039a2-ad5b-45c0-bfb8-504d8daac4ea	179	74.66	2019-04-19
+20473b82-9ba8-49c4-8936-601662ec4e77	132f0b0e-0573-417b-936c-a86508f5efa4	55	70.39	2019-03-29
+fd27002b-1f29-450a-9e3d-d5786ba0eb75	3c407de7-fff0-4df8-8a78-7342f56253f6	80	53.24	2019-04-09
+9f8f48cf-b200-4b1a-90e2-6b46927f857a	60f8b8c9-d508-4f40-88eb-c0cbdf06db4d	46	41.75	2019-03-15
+25590680-8f65-4cd2-9ed4-218ad9dd768d	151db54f-27dd-4a88-b5b5-9579fdf16a0c	158	27.70	2019-04-26
+dffc1cf5-31fa-4882-9c40-7d21b9f30120	87115beb-5acc-4589-801c-4d90a0dd4d38	85	58.43	2019-03-17
+a9f404fe-6768-4506-be67-66264ebab0fb	89524129-bbec-49c5-a5f2-2f543d6e32c4	79	5.62	2019-03-23
+f46bfbd4-b9b0-46a3-9758-e77fc8b554a2	6d4d6a0f-9a23-40c6-9976-b83ad6f8b836	150	78.23	2019-03-07
+46b9e0b0-6150-4820-a756-a7069270d573	015e0c8d-ad4d-494a-9cde-bdbaaf96ed7f	41	60.92	2019-03-26
+4eabbb1c-7821-43e0-ae63-b92e7b88bfd3	8a9cbbde-2a4d-4434-a666-f6b64b5db5c6	39	71.10	2019-05-01
+5f6802c7-68ab-4227-85c1-a2d678b5c412	ce9e10dd-3346-4112-bcd2-4ebd63dc6437	146	37.12	2019-03-29
+7053ba1a-33b7-4390-823a-e736d8e187fb	8709f342-d01a-491f-be37-43a7b9ff8d88	144	75.10	2019-04-27
+672a3827-8d6b-4bf6-8ed6-302839b924ba	059c62d0-49eb-4b6b-a79b-b3d6037d6315	184	62.56	2019-03-21
+9127bd03-27c8-4ad0-bbab-cf2f9416170a	7e8fead1-7258-4cc5-817b-1807f6812650	182	5.50	2019-03-29
+63f3c918-18e0-4ca5-822b-8cefe0c46b8a	7bdf06c0-340e-420b-9621-19fc4321f6a8	123	47.59	2019-04-09
+0d1db935-3966-437b-9184-7cd6c09d762b	d9ba4341-3468-407b-a2b2-001065c8ca64	69	8.41	2019-04-12
+355edfba-d696-4666-9529-cc7303bdbb3f	0ff018a9-246a-48b1-af8d-e21af24bc1fb	161	32.11	2019-05-01
+2e91a7e1-868d-4749-8797-8fe3f12b3554	9c781d78-6940-4bba-807b-decd49df8e23	49	71.62	2019-04-17
+905005d0-b554-4ad6-8c6b-dd205d1721e3	566302ca-a5a8-45f8-ad8b-6c2d8dbc0280	141	50.39	2019-03-03
+1edb1ab5-2fd0-42f7-89fb-914821d1c668	269b8205-7ca6-4eab-8732-76ee143883a2	16	76.67	2019-04-17
+ce232bdc-35fa-4f8f-8ce8-4c670cdb8bcf	6539de5c-8e4d-46a4-b1a1-2ece322cc4ea	56	76.84	2019-04-19
+95972982-78c4-4855-a427-3dfc5df0983d	1345d64e-d174-4a07-b8ee-e2bbab9ade73	116	53.68	2019-04-28
+a06dfa80-8f84-4264-9908-7eb2f99e5260	f4938d7c-e407-46b8-85ba-fe7a12155dd4	8	51.59	2019-04-07
+3c529f57-e7fc-4d3a-95a4-a048500b37d9	013d2715-f5d8-4803-a3c4-bdcad0b36cbb	101	12.68	2019-04-23
+d3a3fe89-f8f4-456c-aeeb-c1ff7ff13046	7bc4ef7d-09bb-4fe7-8f4c-78f7d850021a	26	59.82	2019-04-02
+d87f44c9-7211-45a8-bd34-b30c4f464dc6	bb42d930-8b14-4cc7-86bb-1fe221743b6b	31	7.59	2019-04-23
+137ce773-9784-4d2b-ae7d-d42db815839d	9d695e72-e4e8-4f0c-9a89-c8359efd8c4e	166	38.73	2019-04-11
+7b213940-a708-48a8-a3af-d73b1b200b5a	2d7609d1-930b-4170-9647-053586b6909d	11	47.77	2019-04-07
+eb8c24ba-1839-4c4a-8877-36c408bfe0da	9e5c01c4-a1c4-45d1-912b-fbf9f33a8105	90	44.31	2019-03-03
+dffc1cf5-31fa-4882-9c40-7d21b9f30120	da36c060-0397-40c6-b2cc-e0ce52081e5a	28	43.38	2019-04-16
+45a38514-2b25-429f-b3d7-24db986a42db	9d695e72-e4e8-4f0c-9a89-c8359efd8c4e	73	38.73	2019-04-22
+e4ab6f72-6647-4fff-89dc-4b481f0ab5c4	d9ba4341-3468-407b-a2b2-001065c8ca64	195	8.41	2019-04-02
+fb095c45-13d8-42e4-a805-19bd2a94a843	2991900a-6d5e-40a2-8eff-38f9ec8c7e2f	115	39.73	2019-04-24
+fa8cd2a8-268d-4202-b598-31326d6650cd	dbdbe80e-aa56-4d4b-b762-e3ca6ffcdc5a	181	78.60	2019-04-16
+9822f78b-869f-4b2b-a3a6-8a6cfbfd8a8a	c59920f0-5293-4120-a46b-46e4961957a6	115	59.83	2019-04-06
+7dae6269-8429-4e9f-a344-13d6f4edb236	01427207-a535-438c-8260-ad2dbd691db7	3	46.16	2019-03-07
+25590680-8f65-4cd2-9ed4-218ad9dd768d	d100b9d6-7a21-4ab8-b8d6-99cc5ad034b0	163	62.72	2019-04-05
+3fe18e26-0388-421f-97df-79b16963bba3	bf244868-8542-4870-b00d-f0b5a6c98a08	182	9.46	2019-04-17
+c6e574a4-6fb6-4730-87d2-ba0ed1bdce16	1aaa5b70-10d0-428a-8820-2ddc77085f67	114	59.62	2019-04-29
+19ec9e69-7d81-4c42-b28f-c4c3e8cdf7fd	da25030d-e452-416e-aa3b-eef8708cbb95	175	37.43	2019-03-16
+188b5d4a-c7fe-4157-a11b-726d67b1f5d2	d3a59f44-7c30-4650-baa0-b5756b738f95	17	44.59	2019-04-23
+abac17a1-8f99-4e95-b1ef-aab819c5184d	2b02104f-2f43-40a3-941f-8f76907bc88a	65	64.81	2019-03-28
+f46bfbd4-b9b0-46a3-9758-e77fc8b554a2	da36c060-0397-40c6-b2cc-e0ce52081e5a	58	43.38	2019-04-28
+9a07dbef-7ea8-434f-a9bb-2e36849bdd32	0eac35dc-2ca9-4d12-8289-ac4fe300b35b	158	26.05	2019-03-20
+48bdba2a-b3e6-4ec0-bca9-8ee4b3d930bd	bda84ed6-cf87-4be0-9c4c-b8faac803228	130	10.32	2019-03-09
+9f8f48cf-b200-4b1a-90e2-6b46927f857a	fd6798fe-1286-4348-8e0e-b6f87791ccc3	42	39.22	2019-04-28
+6d89d17c-39da-4a06-9fa0-b46e07bb5626	b19d8b5b-e2e2-459d-93bf-9e6d89d4c217	78	1.07	2019-03-14
+6aea7bba-c491-4a8e-8a5e-bc06750083e0	085039a2-ad5b-45c0-bfb8-504d8daac4ea	137	74.66	2019-04-28
+1edb1ab5-2fd0-42f7-89fb-914821d1c668	29f11f2d-9b15-4748-baea-5998b19305df	126	4.49	2019-04-27
+8d9e0962-9dd2-4200-8f94-ff40b3b5a259	1bd9dd12-3b93-4c8c-be57-80a27a2f5928	123	67.93	2019-04-19
+d4e818c7-18f0-4296-bdbb-a0dfaa4c4be2	0a46e7dc-9b1c-46ca-b321-2ff7c1391a08	90	54.40	2019-03-08
+c10edcfe-0b50-4a44-b65f-f3c1efa04edf	16843a44-b733-45f8-a98f-edb733833293	133	76.81	2019-03-15
+89ad0469-2149-4bf6-b92f-f064da2debdd	7bdf06c0-340e-420b-9621-19fc4321f6a8	125	47.59	2019-04-22
+e74edfe0-42cc-4392-abc6-6e54d10fffad	85876f5b-05b1-49ba-826f-76cf698573b7	77	33.78	2019-03-13
+dfe97a6b-4ad9-437a-9104-46655bafa472	02008bf5-e962-43b0-bf21-743256aaf479	151	23.43	2019-04-26
+e8b2f168-fa77-43cf-9377-5f2e681fdb4d	013d2715-f5d8-4803-a3c4-bdcad0b36cbb	72	12.68	2019-04-11
+c834638f-cfae-419d-92ba-5c0e68ac48b9	2e3f1881-b07b-4a97-9482-4212922ebd13	11	73.83	2019-04-11
+9d122f9b-f21f-4555-9e99-77fd8136a8d8	2c875023-78e6-4690-9ccd-3a5d5f31c9d2	78	51.70	2019-03-16
+520f99dd-a369-420f-bf67-7c91c7d25482	013d2715-f5d8-4803-a3c4-bdcad0b36cbb	13	12.68	2019-04-21
+4b3a39eb-711a-4def-8fe4-23a9699eaa27	1345d64e-d174-4a07-b8ee-e2bbab9ade73	33	53.68	2019-04-06
+3c529f57-e7fc-4d3a-95a4-a048500b37d9	88192bf2-e49c-4125-8a76-0da9c43b65bd	162	53.07	2019-04-04
+567c239b-e736-42a9-9eb5-21d4db33bd11	0a8e6a83-264e-492c-931b-7fdf960ffcbd	30	12.82	2019-03-03
+e8b2f168-fa77-43cf-9377-5f2e681fdb4d	bb42d930-8b14-4cc7-86bb-1fe221743b6b	120	7.59	2019-04-21
+e1be2478-b460-4e12-b4a6-07ef4b676f8c	60f8b8c9-d508-4f40-88eb-c0cbdf06db4d	148	41.75	2019-03-08
+b439c060-eee0-407e-93a6-12a0f0bf0bc0	b518442d-0eb3-4a45-a375-f2c3f8e812c1	23	40.08	2019-04-02
+4fe86bc7-1e50-4aea-8ef0-c06e5e62e62f	10524e7b-c19b-47f6-85ae-e185ac30427b	69	31.67	2019-04-21
+1edb1ab5-2fd0-42f7-89fb-914821d1c668	e7540f85-808f-4895-ae77-67891fbaa4f8	111	27.85	2019-03-25
+e4ab6f72-6647-4fff-89dc-4b481f0ab5c4	5fbc9989-fa6b-4289-995a-bdb12b1062c0	82	56.14	2019-03-04
+4b41dcb6-1623-437e-b515-6a177a4d25e2	0d3568cf-4f0c-4ad7-94fa-92141453a66a	39	26.78	2019-04-17
+4451789d-bded-4e9c-a391-85e32ad6175e	b38ee866-a0f5-4223-8622-592e2daabd61	177	75.84	2019-04-15
+137ce773-9784-4d2b-ae7d-d42db815839d	43f2848a-024e-411a-bb76-5fe7c59bed04	30	60.84	2019-04-09
+42d4ffcc-9d10-4e9f-b997-b5ec73c51564	16ad21b5-1fcb-4aac-b733-4eb59d6fc053	133	23.08	2019-04-18
+137ce773-9784-4d2b-ae7d-d42db815839d	7bc4ef7d-09bb-4fe7-8f4c-78f7d850021a	152	59.82	2019-04-17
+86818019-da52-4a05-8981-bb166650ff5b	924c460b-8055-4092-ba3c-ee4eabdd6bc9	181	7.83	2019-04-19
+20473b82-9ba8-49c4-8936-601662ec4e77	26aea7ea-63cd-4199-bd86-e114b2ae5032	126	33.60	2019-04-30
+a6e7dd15-6161-42e5-b282-e431bec79b66	0dca08d9-bd2a-4ccf-8128-db5c4a9969d1	111	32.52	2019-04-03
+9e114e1c-74dc-4cde-b16b-eeecd72e0424	9e5c01c4-a1c4-45d1-912b-fbf9f33a8105	75	44.31	2019-04-11
+9c61d8e6-7b17-474b-be12-2a07a9bf7e19	cf576c98-e825-44ed-9c42-f3a9284c8be1	105	65.91	2019-04-12
+c116f1c8-5046-4173-867d-d43b35391f28	da25030d-e452-416e-aa3b-eef8708cbb95	55	37.43	2019-04-14
+d4e818c7-18f0-4296-bdbb-a0dfaa4c4be2	17e9e6a0-3b61-425b-8113-aa89de0268a3	64	12.75	2019-04-18
+bbd81cea-a28a-43e5-ab8a-53f682b29bf3	a61a297a-7046-4eb8-a9e2-869fe325ab8e	100	29.45	2019-03-10
+01c5fd3c-68db-415e-826a-f572b737d3f5	0cdc1749-31e9-4542-975c-e9469a88e616	192	9.96	2019-03-23
+26bbfd90-0169-4b38-bedf-144a62691f90	71ebdae1-1736-4a53-89f9-4d48df7ffb6e	124	43.25	2019-04-25
+dfe97a6b-4ad9-437a-9104-46655bafa472	3f048492-b1f9-41b4-9244-c5f1c7cf9c88	7	35.41	2019-03-09
+457e258c-c103-47f3-ac33-f81d9a00d033	71ebdae1-1736-4a53-89f9-4d48df7ffb6e	41	43.25	2019-03-03
+a6e7dd15-6161-42e5-b282-e431bec79b66	60b9ef03-59cc-46a5-b972-7f081d1969cd	100	5.59	2019-04-18
+0f4a0696-e20c-41a0-80be-db3a13a7a5bc	56f33e89-99b8-4770-b8f8-69e0ba53932e	160	5.72	2019-03-07
+52466041-b284-4805-890a-e9e4d3279216	60b9ef03-59cc-46a5-b972-7f081d1969cd	15	5.59	2019-03-05
+e74edfe0-42cc-4392-abc6-6e54d10fffad	c59920f0-5293-4120-a46b-46e4961957a6	40	59.83	2019-03-29
+01c5fd3c-68db-415e-826a-f572b737d3f5	58953f9b-b002-4d77-ad70-9ac97589b8d6	157	79.72	2019-03-23
+d9e81440-2273-43e8-bb79-4f11ab28b05b	4797abda-11f1-420a-9f57-aa78c4d9d98f	132	45.42	2019-03-28
+abcb135f-83f3-4304-88f3-dcc62e75740c	3e1c6a98-18d9-4ed7-981e-d2d94455112f	103	50.39	2019-04-07
+c7d3d71d-d732-42a8-abd9-cbdfe88f95e4	43f2848a-024e-411a-bb76-5fe7c59bed04	173	60.84	2019-03-02
+f38add98-61af-4646-b80e-ad62c23ec16b	8aea8142-8b32-462b-9c7d-3d7ce7ffb646	49	42.17	2019-03-31
+a6e7dd15-6161-42e5-b282-e431bec79b66	535a7cf0-b154-446c-a936-2d7a9a5c4d02	110	74.76	2019-04-17
+4eabbb1c-7821-43e0-ae63-b92e7b88bfd3	3c407de7-fff0-4df8-8a78-7342f56253f6	131	53.24	2019-03-19
+ce232bdc-35fa-4f8f-8ce8-4c670cdb8bcf	4cd0be6a-5554-442b-84dc-e48432ebfee3	72	67.21	2019-04-20
+d084242f-a193-47f2-a709-6245fd8d0aa4	f4938d7c-e407-46b8-85ba-fe7a12155dd4	70	51.59	2019-03-29
+3c529f57-e7fc-4d3a-95a4-a048500b37d9	60b9ef03-59cc-46a5-b972-7f081d1969cd	80	5.59	2019-04-12
+e4ab6f72-6647-4fff-89dc-4b481f0ab5c4	73aa43f3-ae71-4a66-a171-f65e6f44b7d8	184	77.67	2019-03-05
+6d89d17c-39da-4a06-9fa0-b46e07bb5626	0a8e6a83-264e-492c-931b-7fdf960ffcbd	135	12.82	2019-04-10
+63f3c918-18e0-4ca5-822b-8cefe0c46b8a	3c474e79-b0c6-44d8-b039-38e6b8a55616	78	28.69	2019-03-30
+86818019-da52-4a05-8981-bb166650ff5b	4f085238-6a6d-4674-b8dc-d93f233b2675	159	7.19	2019-03-23
+06d4f1d1-18b5-4372-8f48-0fee5f2053a3	0a46e7dc-9b1c-46ca-b321-2ff7c1391a08	171	54.40	2019-03-11
+d4e818c7-18f0-4296-bdbb-a0dfaa4c4be2	e0b3423e-e5f4-4f60-9ae5-3a9229e4b65d	105	51.23	2019-03-19
+23b0d473-336c-4e64-8639-19561172d0e8	e86584d4-9941-4426-8ce7-acc86d250675	101	12.63	2019-04-20
+1f1c74e4-bb2b-43fe-a4e5-7e3012f8f6d8	6ed87320-d6ad-4b6b-a649-8985ed924cae	139	63.19	2019-03-09
+bee789d4-526c-4bc2-a78d-4883c5034020	a8754384-7f40-46e7-9ba8-8d2d648fb065	185	69.86	2019-03-07
+90562646-eb92-4ff4-8274-03932727e659	02008bf5-e962-43b0-bf21-743256aaf479	105	23.43	2019-04-15
+42a43327-62f7-4c5f-a1a4-b2ac27e69da1	9d695e72-e4e8-4f0c-9a89-c8359efd8c4e	31	38.73	2019-04-03
+19ec9e69-7d81-4c42-b28f-c4c3e8cdf7fd	d98f84bf-5a4f-4844-abd7-ce4df35ea81f	87	46.48	2019-04-14
+95972982-78c4-4855-a427-3dfc5df0983d	a617c621-d813-45ad-8009-2e6cadb51d89	73	45.15	2019-03-14
+abcb135f-83f3-4304-88f3-dcc62e75740c	039365d6-09d7-422a-9735-6c852d66f99d	117	73.21	2019-04-11
+4819082b-2d0b-4464-b17e-a9b2211d1535	5fe00ed3-a80e-4509-95aa-8a5e2762e7b0	101	62.10	2019-03-16
+b5a63e62-b1ff-4dff-bd63-c74f6445efb2	f38b4fcb-bf88-4db7-bdb5-6552599cb25c	6	11.09	2019-03-24
+e497f5b7-7d73-4e2e-bac1-2fee2c02bd00	8aea8142-8b32-462b-9c7d-3d7ce7ffb646	77	42.17	2019-04-01
+b2adc314-85dd-46d3-938b-ecfe7008dc20	bb42d930-8b14-4cc7-86bb-1fe221743b6b	158	7.59	2019-04-28
+42d4ffcc-9d10-4e9f-b997-b5ec73c51564	bb42d930-8b14-4cc7-86bb-1fe221743b6b	52	7.59	2019-03-19
+2e023160-0bff-49e2-ba82-2ffc1419a56d	059c62d0-49eb-4b6b-a79b-b3d6037d6315	57	62.56	2019-03-16
+496f20d3-7a9a-49f1-a895-a797e8011307	c89f01c1-356f-4161-ac3a-07b034979cfd	23	34.26	2019-03-09
+46b9e0b0-6150-4820-a756-a7069270d573	d9ba4341-3468-407b-a2b2-001065c8ca64	51	8.41	2019-04-27
+6e596cb2-3c46-4b60-9b1d-2a5fcf90c998	b8f06642-90e7-43e1-a721-fe534ba203bb	106	35.95	2019-04-21
+d6fa270f-0bd2-4b95-acbe-05944ce59945	31876faf-aa95-4112-925b-a29774708753	90	31.46	2019-03-19
+d66fb17f-4ee4-499a-9e6e-5c394b7346db	a8754384-7f40-46e7-9ba8-8d2d648fb065	7	69.86	2019-03-06
+aefaf8a6-3cfe-4fb6-951d-93b624aa9d97	be7c9b7c-6fb2-42b0-8afe-4dbc7c59b540	65	11.38	2019-03-22
+2324ee0e-edc2-4037-9a17-5d5818809c5d	4797abda-11f1-420a-9f57-aa78c4d9d98f	195	45.42	2019-04-22
+2e91a7e1-868d-4749-8797-8fe3f12b3554	e86584d4-9941-4426-8ce7-acc86d250675	72	12.63	2019-04-27
+8d9e0962-9dd2-4200-8f94-ff40b3b5a259	be7c9b7c-6fb2-42b0-8afe-4dbc7c59b540	1	11.38	2019-04-06
+6aea7bba-c491-4a8e-8a5e-bc06750083e0	6397e23d-93ca-448a-af34-e1e2667c8e44	50	77.60	2019-03-25
+1909a18e-4825-4aca-abdd-0a72bda66711	614546f2-409e-4f53-82c3-08187125c076	26	53.14	2019-03-30
+\.
+
+
+--
+-- TOC entry 2683 (class 2606 OID 16735)
+-- Name: customers customers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.customers
+    ADD CONSTRAINT customers_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 2685 (class 2606 OID 16758)
+-- Name: providers providers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.providers
+    ADD CONSTRAINT providers_pkey PRIMARY KEY (name);
+
+
+--
+-- TOC entry 2687 (class 2606 OID 16763)
+-- Name: tickets tickets_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tickets
+    ADD CONSTRAINT tickets_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 2689 (class 2606 OID 16773)
+-- Name: transactions transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.transactions
+    ADD CONSTRAINT transactions_pkey PRIMARY KEY (cust_id, ticket_id, date);
+
+
+--
+-- TOC entry 2693 (class 2620 OID 16792)
+-- Name: tickets datechanged; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER datechanged BEFORE UPDATE ON public.tickets FOR EACH ROW EXECUTE PROCEDURE public.datechanged();
+
+
+--
+-- TOC entry 2690 (class 2606 OID 16764)
+-- Name: tickets tickets_provider_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tickets
+    ADD CONSTRAINT tickets_provider_fkey FOREIGN KEY (provider) REFERENCES public.providers(name);
+
+
+--
+-- TOC entry 2691 (class 2606 OID 16774)
+-- Name: transactions transactions_cust_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.transactions
+    ADD CONSTRAINT transactions_cust_id_fkey FOREIGN KEY (cust_id) REFERENCES public.customers(id);
+
+
+--
+-- TOC entry 2692 (class 2606 OID 16779)
+-- Name: transactions transactions_ticket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.transactions
+    ADD CONSTRAINT transactions_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id);
+
+
+-- Completed on 2019-06-05 03:21:25
+
+--
+-- PostgreSQL database dump complete
+--
+

@@ -1,0 +1,65 @@
+a) select sum(ticket_num), category 
+   from tickets , transactions 
+   where tickets.id = transactions.ticket_id 
+   group by category
+
+
+
+b) select category, sum(price*ticket_num) as tziros
+from (
+	 select category, price, ticket_num
+	from tickets inner join transactions on id = ticket_id) as triz
+group by category
+order by tziros desc
+limit 1
+
+
+
+c) select category, round(avg(price*ticket_num),3) as avgSales
+from tickets inner join (
+	select ticket_id, ticket_num
+	from customers inner join transactions on id = cust_id
+	where age between 16 and 44
+) as rng on ticket_id = id
+group by category
+
+
+
+d) select title, sum(price*ticket_num) as mxTziros
+from tickets inner join transactions on id = ticket_id
+group by title
+order by mxTziros desc
+limit 1
+
+
+
+e) select distinct on (category) category, name, max(sm) as numoftickets
+from (
+	select name, sum(ticket_num) as sm, category
+	from tickets, customers, transactions
+	where tickets.id = ticket_id and customers.id = cust_id
+	group by name, category
+    ) as top
+group by name, category
+order by category, numoftickets desc
+	
+
+
+f) select providers.name, sum(ticket_num) as totalTickets
+   from (transactions inner join tickets on id = ticket_id)
+   inner join 
+   providers on provider = providers.name
+   group by providers.name
+   order by totalTickets desc
+   limit 1
+
+
+
+g) select title, sum(ticket_num) as totalTickets
+   from tickets inner join transactions on id = ticket_id
+   where date >= '14/4/2019' and date <= CURRENT_DATE
+   group by title
+
+
+
+

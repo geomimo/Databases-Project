@@ -1,0 +1,14 @@
+create or replace function dateChanged()
+	returns trigger language plpgsql as $$
+
+begin
+if new.end_date < old.end_date then
+	update transactions set ticket_price = ticket_price*0.8 where ticket_id = old.id;
+end if;
+return new;
+end;
+$$
+
+create trigger dateChanged
+before update on tickets
+for each row execute procedure dateChanged()

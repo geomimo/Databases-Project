@@ -1,0 +1,10 @@
+/home/ppetrou/RiderProjects/HelloWorld/bin/Debug/netcoreapp2.0/HelloWorld.deps.json
+/home/ppetrou/RiderProjects/HelloWorld/bin/Debug/netcoreapp2.0/HelloWorld.runtimeconfig.json
+/home/ppetrou/RiderProjects/HelloWorld/bin/Debug/netcoreapp2.0/HelloWorld.runtimeconfig.dev.json
+/home/ppetrou/RiderProjects/HelloWorld/bin/Debug/netcoreapp2.0/HelloWorld.dll
+/home/ppetrou/RiderProjects/HelloWorld/bin/Debug/netcoreapp2.0/HelloWorld.pdb
+/home/ppetrou/RiderProjects/HelloWorld/obj/Debug/netcoreapp2.0/HelloWorld.csproj.CoreCompileInputs.cache
+/home/ppetrou/RiderProjects/HelloWorld/obj/Debug/netcoreapp2.0/HelloWorld.AssemblyInfoInputs.cache
+/home/ppetrou/RiderProjects/HelloWorld/obj/Debug/netcoreapp2.0/HelloWorld.AssemblyInfo.cs
+/home/ppetrou/RiderProjects/HelloWorld/obj/Debug/netcoreapp2.0/HelloWorld.dll
+/home/ppetrou/RiderProjects/HelloWorld/obj/Debug/netcoreapp2.0/HelloWorld.pdb

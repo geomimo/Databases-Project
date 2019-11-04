@@ -1,0 +1,23 @@
+create or replace function getTicketsUntilToday(dt date)
+	returns table (title text, totalTickets integer) as $$
+declare 
+	recTick record;
+	curTick cursor (dt date) for select tickets.title as tTitle, sum(ticket_num) as tTick
+   								 from tickets inner join transactions on id = ticket_id
+  								 where transactions.date >= dt and transactions.date <= CURRENT_DATE
+ 							     group by tickets.title;
+								 
+begin
+open curTick(dt);
+loop
+	fetch curTick into recTick;
+	exit when not found;
+	title := recTick.tTitle;
+	totalTickets := recTick.tTick;
+	return next;
+end loop;
+close curTick;
+end; $$
+language plpgsql;
+
+select * from getTicketsUntilToday('14-04-2018');
